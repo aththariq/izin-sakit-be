@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    /* Target and Module */
+    "target": "ES2020" /* Target versi ECMAScript */,
+    "module": "CommonJS" /* Menggunakan sistem modul Node.js */,
+
+    /* Directories */
+    "rootDir": "./src" /* Direktori sumber kode */,
+    "outDir": "./dist" /* Direktori hasil build */,
+
+    /* Type Checking */
+    "strict": true /* Aktifkan semua pemeriksaan tipe yang ketat */,
+    "forceConsistentCasingInFileNames": true /* Casing konsisten pada nama file */,
+    "skipLibCheck": true /* Lewati pemeriksaan tipe pada file .d.ts */,
+
+    /* Module Interoperability */
+    "esModuleInterop": true /* Untuk impor default dari modul CommonJS */,
+    "resolveJsonModule": true /* Mengizinkan impor file JSON */,
+
+    /* Source Maps */
+    "sourceMap": true /* Membuat file source map untuk debugging */,
+
+    /* Node.js Specific */
+    "moduleResolution": "node" /* Resolusi modul Node.js */,
+    "typeRoots": [
+      "./src/typings",
+      "./node_modules/@types"
+    ] /* Direktori untuk tipe */,
+    "allowSyntheticDefaultImports": true /* Mengizinkan impor default meskipun tidak ada default export */
+  },
+  "include": ["src/**/*"] /* Semua file di dalam src */,
+  "exclude": [
+    "node_modules",
+    "dist"
+  ] /* Kecualikan direktori yang tidak perlu */
+}
