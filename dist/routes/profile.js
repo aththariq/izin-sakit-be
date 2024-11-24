@@ -4,14 +4,15 @@ const express_1 = require("express");
 const router = (0, express_1.Router)();
 // Middleware autentikasi
 const isAuthenticated = (req, res, next) => {
-    if (req.isAuthenticated()) {
+    if (req.session?.user) {
         return next();
     }
-    res.status(401).send("Unauthorized");
+    res.status(401).json({ message: "Unauthorized" });
 };
 // Profil pengguna
 router.get("/", isAuthenticated, (req, res) => {
-    res.json(req.user);
+    const { id, username } = req.session.user;
+    res.json({ id, username });
 });
 exports.default = router;
 //# sourceMappingURL=profile.js.map
