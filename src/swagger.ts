@@ -12,7 +12,7 @@ const swaggerDefinition = {
       url: "http://localhost:5001", 
     },
     {
-      url: "https://your-backend.up.railway.app", 
+      url: "https://web-tst-backend-production.up.railway.app", 
     },
   ],
 };
