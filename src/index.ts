@@ -24,8 +24,12 @@ const app: Express = express();
 app.use(express.json());
 app.use(
   cors({
-    origin: "http://localhost:5173", // Sesuaikan dengan frontend Anda
+    origin: [
+      "http://localhost:5173",
+      "https://laundry-project-attar.vercel.app/login",
+    ], // Sesuaikan dengan frontend Anda
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE"],
   })
 );
 app.use(

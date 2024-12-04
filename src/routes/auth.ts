@@ -3,6 +3,11 @@ import passport from "passport";
 
 const router = Router();
 
+const FRONTEND_URL =
+  process.env.NODE_ENV === "production"
+    ? process.env.FRONTEND_URL_PRODUCTION
+    : process.env.FRONTEND_URL_LOCAL;
+
 /**
  * @swagger
  * /auth/google:
@@ -31,11 +36,10 @@ router.get(
 router.get(
   "/google/callback",
   passport.authenticate("google", {
-    failureRedirect: "http://localhost:5173/login",
+    failureRedirect: `${FRONTEND_URL}/login`, 
   }),
   (req: Request, res: Response) => {
-    // Redirect to dashboard on successful authentication
-    res.redirect("http://localhost:5173/dashboard");
+    res.redirect(`${FRONTEND_URL}/dashboard`);
   }
 );
 

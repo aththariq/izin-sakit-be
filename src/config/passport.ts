@@ -2,6 +2,7 @@ import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import User from "../models/User";
 
+const isProduction = process.env.NODE_ENV === "production";
 console.log("GOOGLE_CLIENT_ID:", process.env.GOOGLE_CLIENT_ID);
 console.log("GOOGLE_CLIENT_SECRET:", process.env.GOOGLE_CLIENT_SECRET);
 
@@ -10,7 +11,9 @@ passport.use(
     {
       clientID: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      callbackURL: "http://localhost:5001/auth/google/callback", // Updated to fully qualified URL
+      callbackURL: isProduction
+        ? "https://web-tst-backend.up.railway.app/auth/google/callback" // URL untuk produksi
+        : "http://localhost:5001/auth/google/callback", // URL untuk lokal
     },
     async (_: any, refreshToken: any, profile: any, done: any) => {
       try {
