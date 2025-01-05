@@ -12,6 +12,10 @@ const {
   createSickLeaveForm,
   saveAnswersHandler,
 } = require("../handlers/sickLeaveHandlers");
+const {
+  generateAndSendPDF,
+  convertPdfToImageHandler,
+} = require("../handlers/pdfHandler");
 const verifyToken = require("../utils/jwtMiddleware");
 const Joi = require("@hapi/joi");
 
@@ -123,11 +127,52 @@ const routes = [
       validate: {
         payload: Joi.object({
           formId: Joi.string().required(),
-          answers: Joi.array().items(Joi.string()).required(),
+          answers: Joi.array()
+            .items(
+              Joi.object({
+                questionId: Joi.string().required(),
+                answer: Joi.string().required(),
+              })
+            )
+            .required(),
         }),
       },
     },
   },
+  {
+    method: "GET",
+    path: "/api/generate-pdf/{id}",
+    handler: generateAndSendPDF,
+    options: {
+      cors: {
+        origin: ["*"],
+        additionalHeaders: ["cache-control", "x-requested-with"],
+        credentials: true,
+      },
+    },
+  },
+  // Add static file serving route
+  {
+    method: "GET",
+    path: "/temp/{param*}",
+    handler: {
+      directory: {
+        path: "./temp",
+        listing: false,
+      },
+    },
+    options: {
+      cors: true,
+    },
+  },
+  // {
+  //   method: "GET",
+  //   path: "/api/convert-pdf-to-image/{id}",
+  //   handler: convertPdfToImageHandler,
+  //   options: {
+  //     cors: true,
+  //   },
+  // },
 ];
 
 module.exports = routes;

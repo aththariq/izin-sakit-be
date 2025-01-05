@@ -28,12 +28,16 @@ const SickLeaveSchema = new mongoose.Schema({
   gender: {
     type: String,
     required: true,
-    enum: ["male", "female", "other"], // Jenis kelamin: male, female, atau other
+    enum: ["male", "female", "other"], // Jenis kelamin
   },
   age: {
     type: Number,
     required: true, // Umur harus berupa angka
   },
+  answers: [{
+    questionId: String,
+    answer: String
+  }],
 });
 
 module.exports = mongoose.model("SickLeave", SickLeaveSchema);

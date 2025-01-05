@@ -1,46 +1,60 @@
 require("dotenv").config();
 const Hapi = require("@hapi/hapi");
+const Inert = require("@hapi/inert");
 const mongoose = require("mongoose");
+const path = require('path');
+const fs = require('fs');
 const routes = require("./routes");
 
 const init = async () => {
-  const server = Hapi.server({
-    port: process.env.PORT || 3000,
-    host: process.env.NODE_ENV === "production" ? "0.0.0.0" : "localhost",
-    routes: {
-      cors: {
-        origin: ["*"],
-        headers: ["Accept", "Authorization", "Content-Type", "If-None-Match"],
+  try {
+    const server = Hapi.server({
+      port: process.env.PORT || 3000,
+      host: process.env.NODE_ENV === "production" ? "0.0.0.0" : "localhost",
+      routes: {
+        cors: {
+          origin: ["*"],
+          headers: ["Accept", "Authorization", "Content-Type", "If-None-Match"],
+          credentials: true
+        },
+        files: {
+          relativeTo: path.join(__dirname, '../')
+        }
       },
-    },
-  });
-
-  // Connect to MongoDB
-  mongoose
-    .connect(process.env.MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    })
-    .then(() => {
-      console.log("Connected to MongoDB");
-    })
-    .catch((err) => {
-      console.error("Failed to connect to MongoDB", err);
     });
 
-  server.route(routes);
+    // Register inert plugin
+    await server.register(Inert);
 
-  // Tambahkan logging untuk melihat semua route yang terdaftar
-  server.table().forEach(route => {
-    console.log(`${route.method}\t${route.path}`);
-  });
+    // Create temp directory if it doesn't exist
+    const tempDir = path.join(__dirname, '../temp');
+    if (!fs.existsSync(tempDir)){
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
 
-  await server.start();
-  console.log("Server running on %s", server.info.uri);
+    // Connect to MongoDB
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log("Connected to MongoDB");
+
+    // Register routes
+    server.route(routes);
+
+    // Log registered routes
+    console.log("\nRegistered Routes:");
+    server.table().forEach(route => {
+      console.log(`${route.method}\t${route.path}`);
+    });
+
+    await server.start();
+    console.log(`Server running on ${server.info.uri}`);
+  } catch (err) {
+    console.error("Server initialization error:", err);
+    process.exit(1);
+  }
 };
 
 process.on("unhandledRejection", (err) => {
-  console.log(err);
+  console.error("Unhandled rejection:", err);
   process.exit(1);
 });
 
