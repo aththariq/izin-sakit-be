@@ -5,6 +5,7 @@ const OpenAI = require("openai");
 const nodemailer = require("nodemailer");
 const SickLeave = require("../models/SickLeave");
 const pdf2pic = require("pdf2pic");
+const { sendEmailWithAttachment } = require("./sendEmail");
 
 const openai = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
@@ -171,7 +172,7 @@ async function generatePDF(sickLeave, filePath) {
   });
 }
 
-// Modify generateAndSendPDF to use generatePDF
+// Modify generateAndSendPDF to use sendEmailWithAttachment
 const generateAndSendPDF = async (request, h) => {
   const { id } = request.params;
   const { email, format } = request.query; // Email opsional untuk pengiriman
@@ -216,18 +217,15 @@ const generateAndSendPDF = async (request, h) => {
 
     // Kirim email jika ada alamat email
     if (email) {
-      await transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to: email,
-        subject: "Surat Keterangan Sakit",
-        text: "Terlampir surat keterangan sakit Anda",
-        attachments: [
-          {
-            filename: "surat_keterangan_sakit.pdf",
-            path: filePath,
-          },
-        ],
-      });
+      await sendEmailWithAttachment(
+        email,
+        "Surat Keterangan Sakit",
+        "Terlampir surat keterangan sakit Anda",
+        {
+          filename: "surat_keterangan_sakit.pdf",
+          path: filePath,
+        }
+      );
 
       return h
         .response({
