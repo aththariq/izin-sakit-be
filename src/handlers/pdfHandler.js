@@ -4,7 +4,7 @@ const path = require("path");
 const OpenAI = require("openai");
 const nodemailer = require("nodemailer");
 const SickLeave = require("../models/SickLeave");
-const { fromPath } = require("pdf2pic");
+const pdf2pic = require("pdf2pic");
 
 const openai = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
@@ -24,8 +24,17 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Fungsi untuk menganalisis jawaban dengan AI
+// Fungsi untuk menganalisis jawaban dengan AI dan menyimpan analisis
 async function analyzeAnswers(sickLeave) {
+  // Check if analysis already exists
+  if (sickLeave.analisis && sickLeave.rekomendasi) {
+    return {
+      analisis: sickLeave.analisis,
+      rekomendasi: sickLeave.rekomendasi,
+      catatan: sickLeave.catatan || "Tidak ada catatan tambahan",
+    };
+  }
+
   const prompt = `
     Berdasarkan data pasien berikut:
     - Gejala: ${sickLeave.reason}
@@ -60,7 +69,7 @@ async function analyzeAnswers(sickLeave) {
     const response = completion.choices[0].message.content.trim();
     console.log("AI Response:", response); // Debug log
 
-    // Try to extract JSON if response contains other text
+    // Extract JSON from response
     const jsonMatch = response.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       throw new Error("Invalid JSON format in response");
@@ -74,6 +83,12 @@ async function analyzeAnswers(sickLeave) {
       throw new Error("Missing required fields in AI response");
     }
 
+    // Save analysis to SickLeave
+    sickLeave.analisis = result.analisis;
+    sickLeave.rekomendasi = result.rekomendasi;
+    sickLeave.catatan = result.catatan || "Tidak ada catatan tambahan";
+    await sickLeave.save();
+
     return {
       analisis: result.analisis,
       rekomendasi: result.rekomendasi,
@@ -82,17 +97,81 @@ async function analyzeAnswers(sickLeave) {
   } catch (error) {
     console.error("Error analyzing answers:", error);
     // Return fallback analysis if AI fails
+    sickLeave.analisis = "Berdasarkan gejala yang dilaporkan, pasien memerlukan istirahat.";
+    sickLeave.rekomendasi = "Istirahat selama 1-2 hari";
+    sickLeave.catatan = "Silahkan konsultasi lebih lanjut dengan dokter jika keluhan berlanjut.";
+    await sickLeave.save();
     return {
-      analisis:
-        "Berdasarkan gejala yang dilaporkan, pasien memerlukan istirahat.",
-      rekomendasi: "Istirahat selama 1-2 hari",
-      catatan:
-        "Silahkan konsultasi lebih lanjut dengan dokter jika keluhan berlanjut.",
+      analisis: sickLeave.analisis,
+      rekomendasi: sickLeave.rekomendasi,
+      catatan: sickLeave.catatan,
     };
   }
 }
 
-// Fungsi untuk membuat dan mengirim PDF
+// Add a standalone function to generate PDF
+async function generatePDF(sickLeave, filePath) {
+  const doc = new PDFDocument();
+  const writeStream = fs.createWriteStream(filePath);
+
+  return new Promise((resolve, reject) => {
+    doc.pipe(writeStream);
+
+    // Header surat
+    doc.fontSize(18).text("SURAT KETERANGAN SAKIT", { align: "center" });
+    doc.moveDown();
+
+    // Informasi pasien
+    doc
+      .fontSize(12)
+      .text("Yang bertanda tangan di bawah ini menerangkan bahwa:", {
+        align: "left",
+      })
+      .moveDown();
+
+    doc
+      .text(`Nama          : ${sickLeave.username}`)
+      .text(
+        `Jenis Kelamin : ${
+          sickLeave.gender === "male" ? "Laki-laki" : "Perempuan"
+        }`
+      )
+      .text(`Umur          : ${sickLeave.age} tahun`)
+      .moveDown();
+
+    // Analisis dan rekomendasi
+    doc
+      .text("HASIL PEMERIKSAAN:", { underline: true })
+      .moveDown()
+      .text(sickLeave.analisis)
+      .moveDown()
+      .text(`Rekomendasi istirahat: ${sickLeave.rekomendasi}`)
+      .moveDown();
+
+    if (sickLeave.catatan) {
+      doc
+        .text("Catatan:", { underline: true })
+        .text(sickLeave.catatan)
+        .moveDown();
+    }
+
+    // Tanda tangan dan cap
+    doc
+      .moveDown(2)
+      .text(new Date().toLocaleDateString("id-ID"), { align: "right" })
+      .moveDown()
+      .text("Dokter yang bertugas,", { align: "right" })
+      .moveDown(3)
+      .text("dr. Sistem AI", { align: "right" });
+
+    doc.end();
+
+    writeStream.on("finish", () => resolve(filePath));
+    writeStream.on("error", reject);
+  });
+}
+
+// Modify generateAndSendPDF to use generatePDF
 const generateAndSendPDF = async (request, h) => {
   const { id } = request.params;
   const { email, format } = request.query; // Email opsional untuk pengiriman
@@ -103,98 +182,36 @@ const generateAndSendPDF = async (request, h) => {
       return h.response({ message: "Sick leave not found" }).code(404);
     }
 
-    // Dapatkan analisis AI
+    // Get or generate analysis
     const analysis = await analyzeAnswers(sickLeave);
 
-    // Buat PDF
-    const doc = new PDFDocument();
-    const filePath = path.join(
-      __dirname,
-      `../../temp/surat_izin_sakit_${id}.pdf`
-    );
-    const writeStream = fs.createWriteStream(filePath);
+    // Path untuk menyimpan PDF
+    const filePath = path.join(__dirname, `../../temp/surat_izin_sakit_${id}.pdf`);
 
-    // Tunggu hingga PDF selesai dibuat
-    await new Promise((resolve, reject) => {
-      doc.pipe(writeStream);
+    // Generate PDF
+    await generatePDF(sickLeave, filePath);
 
-      // Header surat
-      doc.fontSize(18).text("SURAT KETERANGAN SAKIT", { align: "center" });
-      doc.moveDown();
-
-      // Informasi pasien
-      doc
-        .fontSize(12)
-        .text("Yang bertanda tangan di bawah ini menerangkan bahwa:", {
-          align: "left",
-        })
-        .moveDown();
-
-      doc
-        .text(`Nama          : ${sickLeave.username}`)
-        .text(
-          `Jenis Kelamin : ${
-            sickLeave.gender === "male" ? "Laki-laki" : "Perempuan"
-          }`
-        )
-        .text(`Umur          : ${sickLeave.age} tahun`)
-        .moveDown();
-
-      // Analisis dan rekomendasi
-      doc
-        .text("HASIL PEMERIKSAAN:", { underline: true })
-        .moveDown()
-        .text(analysis.analisis)
-        .moveDown()
-        .text(`Rekomendasi istirahat: ${analysis.rekomendasi}`)
-        .moveDown();
-
-      if (analysis.catatan) {
-        doc
-          .text("Catatan:", { underline: true })
-          .text(analysis.catatan)
-          .moveDown();
-      }
-
-      // Tanda tangan dan cap
-      doc
-        .moveDown(2)
-        .text(new Date().toLocaleDateString("id-ID"), { align: "right" })
-        .moveDown()
-        .text("Dokter yang bertugas,", { align: "right" })
-        .moveDown(3)
-        .text("dr. Sistem AI", { align: "right" });
-
-      doc.end();
-
-      writeStream.on("finish", resolve);
-      writeStream.on("error", reject);
-    });
-
-    // If preview requested, use pdf2pic
+    // If preview requested, convert first page to PNG
     if (format === "preview") {
       const options = {
-        density: 300,
+        density: 100,
         saveFilename: `preview_${id}`,
         savePath: path.join(__dirname, "../../temp"),
         format: "png",
-        width: 1240,  // Half of A4 width for preview
-        height: 1754  // Half of A4 height for preview
+        width: 595, // A4 width in pixels at 72 DPI
+        height: 842, // A4 height in pixels at 72 DPI
       };
 
-      const convert = fromPath(filePath, options);
-      const result = await convert(1);
+      const convert = pdf2pic.fromPath(filePath, options);
+      const pageImage = await convert(1); // Convert first page
 
-      const imageBuffer = await fs.promises.readFile(result.path);
-      
-      // Clean up
-      fs.unlink(result.path, (err) => {
-        if (err) console.error('Error deleting preview image:', err);
+      return h.file(pageImage.path, {
+        mode: "inline",
+        filename: "preview.png",
+        headers: {
+          "Content-Type": "image/png",
+        },
       });
-
-      return h.response(imageBuffer)
-        .type('image/png')
-        .header('Content-Disposition', 'inline; filename=preview.png');
     }
 
     // Kirim email jika ada alamat email
@@ -220,7 +237,7 @@ const generateAndSendPDF = async (request, h) => {
         .code(200);
     }
 
-    // Return PDF file with proper headers
+    // Return PDF file dengan header yang tepat
     return h.file(filePath, {
       mode: "inline",
       filename: "surat_keterangan_sakit.pdf",
@@ -240,45 +257,42 @@ const generateAndSendPDF = async (request, h) => {
   }
 };
 
+const { pdfToPng } = require("pdf-to-png-converter");
+
 const convertPdfToImageHandler = async (request, h) => {
   const { id } = request.params;
 
   try {
-    const filePath = path.join(__dirname, `../../temp/surat_izin_sakit_${id}.pdf`);
-    const outputPath = path.join(__dirname, `../../temp/`);
+    const sickLeave = await SickLeave.findById(id);
+    if (!sickLeave) {
+      return h.response({ message: "Sick leave not found" }).code(404);
+    }
 
+    // Path file PDF
+    const filePath = path.join(__dirname, `../../temp/surat_izin_sakit_${id}.pdf`);
+
+    // Generate PDF if it doesn't exist
+    if (!fs.existsSync(filePath)) {
+      await generatePDF(sickLeave, filePath);
+    }
+
+    // Periksa apakah file PDF ada
     if (!fs.existsSync(filePath)) {
       return h.response({ message: "PDF file not found" }).code(404);
     }
 
-    const options = {
-      density: 300,
-      saveFilename: `surat_izin_sakit_${id}`,
-      savePath: outputPath,
-      format: "png",
-      width: 2480,  // A4 width at 300 DPI
-      height: 3508  // A4 height at 300 DPI
-    };
-
-    const convert = fromPath(filePath, options);
-    const pageToConvertAsImage = 1;
-
-    // Convert first page to image
-    const result = await convert(pageToConvertAsImage);
-
-    // Read the generated PNG
-    const imageBuffer = await fs.promises.readFile(result.path);
-    
-    // Clean up temporary file
-    fs.unlink(result.path, (err) => {
-      if (err) console.error('Error deleting temporary image:', err);
+    // Konversi halaman pertama PDF ke gambar PNG
+    const pngPages = await pdfToPng(filePath, {
+      outputFolder: "", // Tidak menyimpan ke folder, hanya menghasilkan buffer
+      outputFileMaskFunc: (pageNum) => `page_${pageNum}.png`,
+      pagesToProcess: [1], // Hanya halaman pertama
+      viewportScale: 2.0, // Skala viewport untuk resolusi tinggi
     });
 
-    return h.response(imageBuffer)
-      .type('image/png')
-      .header('Content-Disposition', 'inline; filename=surat_izin_sakit.png');
+    // Kirim halaman pertama sebagai respons (PNG)
+    return h.response(pngPages[0].content).type("image/png");
   } catch (error) {
-    console.error("Error converting PDF to image:", error);
+    console.error("Error converting PDF to image:", error.message);
     return h.response({ message: "Error converting PDF to image" }).code(500);
   }
 };

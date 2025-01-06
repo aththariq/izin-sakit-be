@@ -34,10 +34,16 @@ const SickLeaveSchema = new mongoose.Schema({
     type: Number,
     required: true, // Umur harus berupa angka
   },
-  answers: [{
-    questionId: String,
-    answer: String
-  }],
+  answers: [
+    {
+      questionId: { type: String, required: true },
+      answer: { type: String, required: true },
+    },
+  ],
+  // Add analysis fields
+  analisis: { type: String },
+  rekomendasi: { type: String },
+  catatan: { type: String },
 });
 
 module.exports = mongoose.model("SickLeave", SickLeaveSchema);
