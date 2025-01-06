@@ -14,6 +14,10 @@ const SickLeaveSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  otherReason: { // Added field for additional reasons
+    type: String,
+    required: false,
+  },
   date: {
     type: Date,
     required: true,
@@ -31,8 +35,28 @@ const SickLeaveSchema = new mongoose.Schema({
     enum: ["male", "female", "other"], // Jenis kelamin
   },
   age: {
-    type: Number,
-    required: true, // Umur harus berupa angka
+    type: Number, // Changed back from String to Number
+    required: true, // Umur harus berupa number
+  },
+  institution: { // Added field for institution name
+    type: String,
+    required: true,
+  },
+  phoneNumber: { // Added field for phone number
+    type: String,
+    required: true,
+  },
+  contactEmail: { // Added field for contact email
+    type: String,
+    required: true,
+  },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   },
   answers: [
     {

@@ -7,6 +7,9 @@ const {
 const {
   createSickLeave,
   getSickLeaveById,
+  getSickLeaves,
+  getDashboardSickLeaves,
+  getUserSickLeaves,
 } = require("../handlers/sickLeaveHandlers");
 const {
   createSickLeaveForm,
@@ -110,11 +113,13 @@ const routes = [
           fullName: Joi.string().min(1).required(),
           position: Joi.string().min(1).required(),
           institution: Joi.string().min(1).required(),
-          startDate: Joi.date().required(),
+          startDate: Joi.string().required(), // Changed from date to string
           sickReason: Joi.string().min(1).required(),
           otherReason: Joi.string().allow("", null),
-          gender: Joi.string().valid("male", "female", "other").required(), // Jenis kelamin
-          age: Joi.number().min(1).required(), // Umur
+          gender: Joi.string().valid("male", "female").required(),
+          age: Joi.number().min(1).required(),
+          contactEmail: Joi.string().email().required(),
+          phoneNumber: Joi.string().min(1).required()
         }),
       },
     },
@@ -171,6 +176,43 @@ const routes = [
     handler: convertPdfToImageHandler,
     options: {
       cors: true,
+    },
+  },
+  {
+    method: "GET",
+    path: "/api/sick-leaves",
+    handler: getSickLeaves,
+    options: {
+      pre: [{ method: verifyToken }],
+      cors: {
+        origin: ["*"],
+        additionalHeaders: ["cache-control", "x-requested-with"],
+      },
+    },
+  },
+  {
+    method: "GET",
+    path: "/api/dashboard/sick-leaves",
+    handler: getDashboardSickLeaves,
+    options: {
+      pre: [{ method: verifyToken }],
+      cors: {
+        origin: ["*"],
+        additionalHeaders: ["cache-control", "x-requested-with"],
+      },
+    },
+  },
+  {
+    method: "GET",
+    path: "/api/user/sick-leaves",
+    handler: getUserSickLeaves,
+    options: {
+      pre: [{ method: verifyToken }],
+      cors: {
+        origin: ["*"],
+        additionalHeaders: ["cache-control", "x-requested-with", "authorization"],
+        credentials: true
+      }
     },
   },
 ];

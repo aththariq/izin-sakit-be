@@ -1,8 +1,8 @@
 const OpenAI = require("openai");
-require("dotenv").config(); // Pastikan dotenv sudah di-load
-
 const { v4: uuidv4 } = require("uuid");
 const SickLeave = require("../models/SickLeave");
+const mongoose = require('mongoose'); // Add this import
+require("dotenv").config(); // Pastikan dotenv sudah di-load
 
 // Inisialisasi OpenAI dengan OpenRouter
 const openai = new OpenAI({
@@ -20,7 +20,7 @@ const createSickLeaveForm = async (request, h) => {
     // Log incoming data
     console.log("Received payload:", request.payload);
 
-    const {
+    let {
       fullName,
       position,
       institution,
@@ -29,7 +29,31 @@ const createSickLeaveForm = async (request, h) => {
       otherReason,
       gender,
       age,
+      contactEmail, // Extract contactEmail from payload
+      phoneNumber, // Extract phoneNumber from payload
     } = request.payload;
+
+    // Ensure age is a number
+    age = typeof age === 'string' ? Number(age) : age;
+
+    if (isNaN(age)) {
+      return h.response({
+        message: "Age must be a valid number",
+        receivedData: { age, type: typeof age }
+      }).code(400);
+    }
+
+    // Reintroduce type coercion
+    age = Number(age); // Convert age to number
+    console.log("Coerced Age:", age, typeof age);
+
+    // Log types of received fields
+    console.log("Data Types:", {
+      age: typeof age,
+      startDate: typeof startDate,
+      contactEmail: typeof contactEmail,
+      phoneNumber: typeof phoneNumber,
+    });
 
     // Validasi data yang diperlukan
     if (
@@ -39,12 +63,14 @@ const createSickLeaveForm = async (request, h) => {
       !startDate ||
       !sickReason ||
       !gender ||
-      !age
+      isNaN(age) || // Check if age is a valid number
+      !contactEmail ||
+      !phoneNumber
     ) {
-      console.log("Missing required fields");
+      console.log("Missing or invalid required fields");
       return h
         .response({
-          message: "Missing required fields",
+          message: "Missing or invalid required fields",
           receivedData: request.payload,
         })
         .code(400);
@@ -104,24 +130,30 @@ const createSickLeaveForm = async (request, h) => {
       id: uuidv4(),
       username: fullName,
       reason: sickReason,
-      date: startDate,
+      otherReason, // Include otherReason from payload
+      date: new Date(startDate), // Ensure date is properly formatted
       gender,
-      age,
-      status: "Diajukan",
+      age: Number(age), // Ensure age is stored as number
+      institution, // Save institution from payload
+      contactEmail, // Save contactEmail
+      phoneNumber, // Save phoneNumber
+      status: "Diajukan"
+      // Remove the explicit _id assignment
     });
 
     const savedSickLeave = await sickLeave.save();
-    console.log("Saved sick leave:", savedSickLeave); // Debug log
+    console.log("Created new sick leave:", savedSickLeave); // Debug log
 
     return h
       .response({
         message: "Sick leave form submitted successfully",
         questions: formattedQuestions,
         formId: savedSickLeave._id.toString(), // Ensure formId is a string
+        sickLeave: savedSickLeave, // Include the created sick leave data
       })
       .code(201);
   } catch (error) {
-    console.error("Error details:", error);
+    console.error("Error in createSickLeaveForm:", error);
     return h
       .response({
         message: "Error while processing the form",
@@ -207,9 +239,105 @@ async function getSickLeaveById(request, h) {
   }
 }
 
+// Add this new handler
+const getSickLeaves = async (request, h) => {
+  try {
+    const sickLeaves = await SickLeave.find()
+      .sort({ date: -1 }) // Sort by date in descending order
+      .select('reason date status institution _id'); // Select only needed fields
+    
+    // Debug log to check the structure
+    console.log('Fetched sick leaves:', sickLeaves);
+    
+    // Ensure we're sending an array
+    return h.response(Array.isArray(sickLeaves) ? sickLeaves : []).code(200);
+  } catch (error) {
+    console.error("Error fetching sick leaves:", error);
+    return h.response({ message: "Error fetching sick leaves" }).code(500);
+  }
+};
+
+// Add new handler for dashboard data
+const getDashboardSickLeaves = async (request, h) => {
+  try {
+    const dashboardData = await SickLeave.find()
+      .sort({ date: -1 })
+      .select({
+        _id: 1,
+        reason: 1,
+        date: 1,
+        status: 1,
+        institution: 1,
+        username: 1
+      })
+      .lean(); // Use lean() for better performance since we only need the data
+    
+    console.log('Fetched dashboard data:', dashboardData); // Debug log
+    return h.response(dashboardData).code(200);
+  } catch (error) {
+    console.error("Error fetching dashboard data:", error);
+    return h.response({ message: "Error fetching dashboard data" }).code(500);
+  }
+};
+
+const getUserSickLeaves = async (request, h) => {
+  try {
+    // Add debug logging for the entire request
+    console.log('Full request:', {
+      auth: request.auth,
+      headers: request.headers,
+      state: request.state
+    });
+
+    // Get token from authorization header
+    const authHeader = request.headers.authorization;
+    if (!authHeader) {
+      return h.response({ message: 'No authorization header' }).code(401);
+    }
+
+    // Extract token
+    const token = authHeader.split(' ')[1];
+    if (!token) {
+      return h.response({ message: 'Invalid token format' }).code(401);
+    }
+
+    // For now, return all sick leaves since we can't get user info
+    const userSickLeaves = await SickLeave.find()
+      .sort({ date: -1 })
+      .select({
+        _id: 1,
+        reason: 1,
+        date: 1,
+        status: 1,
+        institution: 1,
+        username: 1,
+        otherReason: 1,
+        contactEmail: 1
+      })
+      .lean();
+
+    console.log('Found sick leaves:', userSickLeaves);
+    
+    return h.response(userSickLeaves)
+      .type('application/json')
+      .code(200);
+  } catch (error) {
+    console.error("Error in getUserSickLeaves:", error);
+    return h.response({
+      message: "Error fetching user sick leaves",
+      error: error.message
+    })
+    .type('application/json')
+    .code(500);
+  }
+};
+
 module.exports = {
   createSickLeaveForm,
   saveAnswersHandler,
   createSickLeave,
   getSickLeaveById,
+  getSickLeaves,
+  getDashboardSickLeaves,
+  getUserSickLeaves,
 };
