@@ -1,10 +1,13 @@
 require("dotenv").config();
 const Hapi = require("@hapi/hapi");
 const Inert = require("@hapi/inert");
+const Vision = require('@hapi/vision');
+const HapiSwagger = require('hapi-swagger');
 const mongoose = require("mongoose");
 const path = require('path');
 const fs = require('fs');
 const routes = require("./routes");
+const Pack = require('../package.json');
 
 const init = async () => {
   try {
@@ -17,14 +20,50 @@ const init = async () => {
           headers: ["Accept", "Authorization", "Content-Type", "If-None-Match"],
           credentials: true
         },
-        files: {
-          relativeTo: path.join(__dirname, '../')
+        validate: {
+          failAction: async (request, h, err) => {
+            if (process.env.NODE_ENV === 'production') {
+              console.error('ValidationError:', err.message);
+              throw new Error('Invalid request payload input');
+            } else {
+              console.error(err);
+              throw err;
+            }
+          }
         }
       },
     });
 
-    // Register inert plugin
-    await server.register(Inert);
+    const swaggerOptions = {
+      info: {
+        title: 'Izin Sakit API Documentation',
+        version: Pack.version,
+        description: 'Documentation for the Izin Sakit REST API'
+      },
+      securityDefinitions: {
+        jwt: {
+          type: 'apiKey',
+          name: 'Authorization',
+          in: 'header',
+          description: 'Use format: Bearer <token>'
+        }
+      },
+      security: [{ jwt: [] }],
+      documentationPath: '/documentation',
+      swaggerUI: true,
+      jsonPath: '/swagger.json',
+      sortEndpoints: 'ordered'
+    };
+
+    // Register plugins with specific order
+    await server.register([
+      Inert,
+      Vision,
+      {
+        plugin: HapiSwagger,
+        options: swaggerOptions
+      }
+    ]);
 
     // Create temp directory if it doesn't exist
     const tempDir = path.join(__dirname, '../temp');
@@ -47,6 +86,7 @@ const init = async () => {
 
     await server.start();
     console.log(`Server running on ${server.info.uri}`);
+    console.log('Documentation available at: /documentation');
   } catch (err) {
     console.error("Server initialization error:", err);
     process.exit(1);

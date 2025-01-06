@@ -32,33 +32,87 @@ const routes = [
           "Selamat datang di API Izin Sakit! Platform untuk pengajuan surat izin sakit digital yang cepat dan terpercaya.",
       };
     },
+    options: {
+      description: 'Welcome endpoint',
+      notes: 'Returns a welcome message',
+      tags: ['api'],
+      plugins: {
+        'hapi-swagger': {
+          responses: {
+            '200': {
+              description: 'Success',
+              schema: Joi.object({
+                message: Joi.string().required()
+              })
+            }
+          }
+        }
+      }
+    }
   },
   {
     method: "POST",
     path: "/register",
     handler: registerUser,
     options: {
+      description: 'Register new user',
+      notes: 'Creates a new user account',
+      tags: ['api', 'users'],
       validate: {
         payload: Joi.object({
-          username: Joi.string().min(3).max(30).required(),
-          email: Joi.string().email().required(),
-          password: Joi.string().min(8).required(),
-        }),
+          username: Joi.string().min(3).max(30).required()
+            .description('Username between 3-30 characters'),
+          email: Joi.string().email().required()
+            .description('Valid email address'),
+          password: Joi.string().min(8).required()
+            .description('Password minimum 8 characters')
+        })
       },
-    },
+      response: {
+        schema: Joi.object({
+          message: Joi.string()
+        })
+      },
+      plugins: {
+        'hapi-swagger': {
+          responses: {
+            '201': {
+              description: 'User created successfully',
+              schema: Joi.object({
+                message: Joi.string()
+              })
+            },
+            '400': {
+              description: 'Bad Request'
+            }
+          }
+        }
+      }
+    }
   },
   {
     method: "POST",
     path: "/login",
     handler: loginUser,
     options: {
+      description: 'User login',
+      notes: 'Authenticates user and returns JWT token',
+      tags: ['api', 'users'],
       validate: {
         payload: Joi.object({
-          email: Joi.string().email().required(),
-          password: Joi.string().min(8).required(),
-        }),
+          email: Joi.string().email().required()
+            .description('Registered email address'),
+          password: Joi.string().min(8).required()
+            .description('User password')
+        })
       },
-    },
+      response: {
+        schema: Joi.object({
+          message: Joi.string(),
+          token: Joi.string()
+        })
+      }
+    }
   },
   {
     method: "POST",
