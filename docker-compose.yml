@@ -1,5 +1,4 @@
-version: '3.8'
-
+version: "3.8"
 services:
   api:
     build:
@@ -7,6 +6,16 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
+    env_file:
+      - .env
     environment:
       - NODE_ENV=production
     restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
