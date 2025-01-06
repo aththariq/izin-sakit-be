@@ -165,14 +165,14 @@ const routes = [
       cors: true,
     },
   },
-  // {
-  //   method: "GET",
-  //   path: "/api/convert-pdf-to-image/{id}",
-  //   handler: convertPdfToImageHandler,
-  //   options: {
-  //     cors: true,
-  //   },
-  // },
+  {
+    method: "GET",
+    path: "/api/convert-pdf-to-image/{id}",
+    handler: convertPdfToImageHandler,
+    options: {
+      cors: true,
+    },
+  },
 ];
 
 module.exports = routes;

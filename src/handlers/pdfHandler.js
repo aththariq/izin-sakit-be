@@ -4,14 +4,7 @@ const path = require("path");
 const OpenAI = require("openai");
 const nodemailer = require("nodemailer");
 const SickLeave = require("../models/SickLeave");
-const { fromPath } = require('pdf2pic');
-
-// Remove pdfjsLib related code
-// const pdfjsLib = require('pdfjs-dist');
-// const { createCanvas } = require('canvas');
-
-// Inisialisasi worker untuk pdf.js
-// pdfjsLib.GlobalWorkerOptions.workerSrc = path.join(__dirname, '../../node_modules/pdfjs-dist/build/pdf.worker.js');
+const { fromPath } = require("pdf2pic");
 
 const openai = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
@@ -99,136 +92,112 @@ async function analyzeAnswers(sickLeave) {
   }
 }
 
-// Add this helper function at the top
-const ensureTempDirExists = () => {
-  const tempDir = path.join(__dirname, "../../temp");
-  if (!fs.existsSync(tempDir)) {
-    fs.mkdirSync(tempDir, { recursive: true });
-  }
-  return tempDir;
-};
-
-// Fungsi untuk mengkonversi PDF ke PNG menggunakan pdf2pic
-const convertPDFToPNG = async (pdfPath, pngPath) => {
-  try {
-    console.log('Converting PDF:', pdfPath);
-    console.log('Target PNG:', pngPath);
-
-    const options = {
-      density: 300,
-      saveFilename: path.basename(pngPath, '.png'),
-      savePath: path.dirname(pngPath),
-      format: "png",
-      width: 2000,
-      height: 2830
-    };
-
-    const convert = fromPath(pdfPath, options);
-    const pageToConvertAsImage = 1;
-    
-    const result = await convert(pageToConvertAsImage);
-    console.log('Conversion result:', result);
-
-    return true;
-  } catch (error) {
-    console.error('Error converting PDF to PNG:', error);
-    throw error;
-  }
-};
-
-// Fungsi untuk membuat dan menyimpan kedua format
-const generateBothFormats = async (sickLeave, analysis, tempDir, id) => {
-  const pdfPath = path.join(tempDir, `surat_izin_sakit_${id}.pdf`);
-  const pngPath = path.join(tempDir, `surat_izin_sakit_${id}.png`);
-
-  // Generate PDF
-  const doc = new PDFDocument();
-  await new Promise((resolve, reject) => {
-    const writeStream = fs.createWriteStream(pdfPath);
-    doc.pipe(writeStream);
-
-    // Header surat
-    doc.fontSize(18).text("SURAT KETERANGAN SAKIT", { align: "center" });
-    doc.moveDown();
-
-    // Informasi pasien
-    doc.fontSize(12)
-      .text("Yang bertanda tangan di bawah ini menerangkan bahwa:", { align: "left" })
-      .moveDown();
-
-    doc.text(`Nama          : ${sickLeave.username}`)
-      .text(`Jenis Kelamin : ${sickLeave.gender === "male" ? "Laki-laki" : "Perempuan"}`)
-      .text(`Umur          : ${sickLeave.age} tahun`)
-      .moveDown();
-
-    // Analisis dan rekomendasi
-    doc.text("HASIL PEMERIKSAAN:", { underline: true })
-      .moveDown()
-      .text(analysis.analisis)
-      .moveDown()
-      .text(`Rekomendasi istirahat: ${analysis.rekomendasi}`)
-      .moveDown();
-
-    if (analysis.catatan) {
-      doc.text("Catatan:", { underline: true })
-        .text(analysis.catatan)
-        .moveDown();
-    }
-
-    // Tanda tangan dan cap
-    doc.moveDown(2)
-      .text(new Date().toLocaleDateString("id-ID"), { align: "right" })
-      .moveDown()
-      .text("Dokter yang bertugas,", { align: "right" })
-      .moveDown(3)
-      .text("dr. Sistem AI", { align: "right" });
-
-    doc.end();
-    writeStream.on('finish', resolve);
-    writeStream.on('error', reject);
-  });
-
-  // Add delay to ensure PDF is completely written
-  await new Promise(resolve => setTimeout(resolve, 1000));
-
-  // Convert to PNG
-  await convertPDFToPNG(pdfPath, pngPath);
-  
-  return { pdfPath, pngPath };
-};
-
+// Fungsi untuk membuat dan mengirim PDF
 const generateAndSendPDF = async (request, h) => {
   const { id } = request.params;
-  const { email, format } = request.query;
-  const tempDir = ensureTempDirExists();
-  
+  const { email, format } = request.query; // Email opsional untuk pengiriman
+
   try {
-    const pdfPath = path.join(tempDir, `surat_izin_sakit_${id}.pdf`);
-    const pngPath = path.join(tempDir, `surat_izin_sakit_${id}.png`);
-    
-    // Cek apakah file sudah ada
-    if (!fs.existsSync(pdfPath) || !fs.existsSync(pngPath)) {
-      const sickLeave = await SickLeave.findById(id);
-      if (!sickLeave) {
-        return h.response({ message: "Sick leave not found" }).code(404);
+    const sickLeave = await SickLeave.findById(id);
+    if (!sickLeave) {
+      return h.response({ message: "Sick leave not found" }).code(404);
+    }
+
+    // Dapatkan analisis AI
+    const analysis = await analyzeAnswers(sickLeave);
+
+    // Buat PDF
+    const doc = new PDFDocument();
+    const filePath = path.join(
+      __dirname,
+      `../../temp/surat_izin_sakit_${id}.pdf`
+    );
+    const writeStream = fs.createWriteStream(filePath);
+
+    // Tunggu hingga PDF selesai dibuat
+    await new Promise((resolve, reject) => {
+      doc.pipe(writeStream);
+
+      // Header surat
+      doc.fontSize(18).text("SURAT KETERANGAN SAKIT", { align: "center" });
+      doc.moveDown();
+
+      // Informasi pasien
+      doc
+        .fontSize(12)
+        .text("Yang bertanda tangan di bawah ini menerangkan bahwa:", {
+          align: "left",
+        })
+        .moveDown();
+
+      doc
+        .text(`Nama          : ${sickLeave.username}`)
+        .text(
+          `Jenis Kelamin : ${
+            sickLeave.gender === "male" ? "Laki-laki" : "Perempuan"
+          }`
+        )
+        .text(`Umur          : ${sickLeave.age} tahun`)
+        .moveDown();
+
+      // Analisis dan rekomendasi
+      doc
+        .text("HASIL PEMERIKSAAN:", { underline: true })
+        .moveDown()
+        .text(analysis.analisis)
+        .moveDown()
+        .text(`Rekomendasi istirahat: ${analysis.rekomendasi}`)
+        .moveDown();
+
+      if (analysis.catatan) {
+        doc
+          .text("Catatan:", { underline: true })
+          .text(analysis.catatan)
+          .moveDown();
       }
 
-      const analysis = await analyzeAnswers(sickLeave);
-      await generateBothFormats(sickLeave, analysis, tempDir, id);
-    }
+      // Tanda tangan dan cap
+      doc
+        .moveDown(2)
+        .text(new Date().toLocaleDateString("id-ID"), { align: "right" })
+        .moveDown()
+        .text("Dokter yang bertugas,", { align: "right" })
+        .moveDown(3)
+        .text("dr. Sistem AI", { align: "right" });
 
-    // Return sesuai format yang diminta
-    if (format === 'preview') {
-      return h.file(pngPath, {
-        mode: 'inline',
-        filename: 'preview.png',
-        headers: {
-          'Content-Type': 'image/png'
-        }
+      doc.end();
+
+      writeStream.on("finish", resolve);
+      writeStream.on("error", reject);
+    });
+
+    // If preview requested, use pdf2pic
+    if (format === "preview") {
+      const options = {
+        density: 300,
+        saveFilename: `preview_${id}`,
+        savePath: path.join(__dirname, "../../temp"),
+        format: "png",
+        width: 1240,  // Half of A4 width for preview
+        height: 1754  // Half of A4 height for preview
+      };
+
+      const convert = fromPath(filePath, options);
+      const result = await convert(1);
+
+      const imageBuffer = await fs.promises.readFile(result.path);
+      
+      // Clean up
+      fs.unlink(result.path, (err) => {
+        if (err) console.error('Error deleting preview image:', err);
       });
+
+      return h.response(imageBuffer)
+        .type('image/png')
+        .header('Content-Disposition', 'inline; filename=preview.png');
     }
 
-    // Handle email jika ada
+    // Kirim email jika ada alamat email
     if (email) {
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
@@ -238,7 +207,7 @@ const generateAndSendPDF = async (request, h) => {
         attachments: [
           {
             filename: "surat_keterangan_sakit.pdf",
-            path: pdfPath,
+            path: filePath,
           },
         ],
       });
@@ -251,8 +220,8 @@ const generateAndSendPDF = async (request, h) => {
         .code(200);
     }
 
-    // Return PDF
-    return h.file(pdfPath, {
+    // Return PDF file with proper headers
+    return h.file(filePath, {
       mode: "inline",
       filename: "surat_keterangan_sakit.pdf",
       headers: {
@@ -261,20 +230,61 @@ const generateAndSendPDF = async (request, h) => {
       },
     });
   } catch (error) {
-    console.error('Detailed error:', error);
-    return h.response({
-      message: "Error processing request",
-      error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    }).code(500);
+    console.error("Error:", error);
+    return h
+      .response({
+        message: "Error processing request",
+        error: error.message,
+      })
+      .code(500);
   }
 };
 
-// Hapus atau comment out fungsi convertPdfToImageHandler karena sudah tidak digunakan
-// const convertPdfToImageHandler = async (request, h) => { ... }
+const convertPdfToImageHandler = async (request, h) => {
+  const { id } = request.params;
+
+  try {
+    const filePath = path.join(__dirname, `../../temp/surat_izin_sakit_${id}.pdf`);
+    const outputPath = path.join(__dirname, `../../temp/`);
+
+    if (!fs.existsSync(filePath)) {
+      return h.response({ message: "PDF file not found" }).code(404);
+    }
+
+    const options = {
+      density: 300,
+      saveFilename: `surat_izin_sakit_${id}`,
+      savePath: outputPath,
+      format: "png",
+      width: 2480,  // A4 width at 300 DPI
+      height: 3508  // A4 height at 300 DPI
+    };
+
+    const convert = fromPath(filePath, options);
+    const pageToConvertAsImage = 1;
+
+    // Convert first page to image
+    const result = await convert(pageToConvertAsImage);
+
+    // Read the generated PNG
+    const imageBuffer = await fs.promises.readFile(result.path);
+    
+    // Clean up temporary file
+    fs.unlink(result.path, (err) => {
+      if (err) console.error('Error deleting temporary image:', err);
+    });
+
+    return h.response(imageBuffer)
+      .type('image/png')
+      .header('Content-Disposition', 'inline; filename=surat_izin_sakit.png');
+  } catch (error) {
+    console.error("Error converting PDF to image:", error);
+    return h.response({ message: "Error converting PDF to image" }).code(500);
+  }
+};
 
 // Make sure export matches the imported name in routes
 module.exports = {
   generateAndSendPDF,
-  // Remove convertPdfToImageHandler from exports
+  convertPdfToImageHandler,
 };
