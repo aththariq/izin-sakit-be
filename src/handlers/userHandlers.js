@@ -1,4 +1,3 @@
-// handlers/userHandlers.js
 const bcrypt = require("bcrypt");
 const User = require("../models/User");
 const dotenv = require("dotenv");
@@ -7,6 +6,14 @@ const { OAuth2Client } = require("google-auth-library");
 const axios = require("axios");
 
 dotenv.config();
+
+// Validasi FRONTEND_URL saat startup
+const FRONTEND_URL = process.env.FRONTEND_URL;
+if (!FRONTEND_URL) {
+  throw new Error('FRONTEND_URL environment variable is not configured');
+}
+
+console.log('Frontend URL configured as:', FRONTEND_URL);
 
 const registerUser = async (request, h) => {
   const { username, email, password } = request.payload;
@@ -80,7 +87,7 @@ const loginUser = async (request, h) => {
 };
 
 const handleGoogleCallback = async (request, h) => {
-  console.log('Received callback request:', request.query);  // Tambahkan logging
+  console.log('Received callback request:', request.query);
   const { code } = request.query;
 
   if (!code) {
@@ -140,25 +147,22 @@ const handleGoogleCallback = async (request, h) => {
       { expiresIn: process.env.JWT_EXPIRY }
     );
 
-    const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const redirectUrl = `${FRONTEND_URL}/Dashboard?token=${jwtToken}`;
-    console.log('Redirecting to:', redirectUrl); // Debug log
-
-    return h.redirect(redirectUrl).code(302); // Pastikan status code 302
+    // Simplified redirect logic
+    const redirectUrl = `${FRONTEND_URL}/dashboard?token=${jwtToken}`;
+    console.log('Redirecting to:', redirectUrl);
+    
+    return h.redirect(redirectUrl).code(302);
+    
   } catch (error) {
     console.error('Google OAuth error:', {
       message: error.message,
       response: error.response?.data,
-      config: {
-        url: error.config?.url,
-        data: error.config?.data
-      }
+      stack: error.stack
     });
     
-    return h.response({ 
-      message: "Gagal login dengan Google",
-      error: error.response?.data || error.message
-    }).code(400);
+    // Redirect ke halaman error di frontend
+    const errorRedirect = `${FRONTEND_URL}/error?message=${encodeURIComponent('Gagal login dengan Google')}`;
+    return h.redirect(errorRedirect).code(302);
   }
 };
 
