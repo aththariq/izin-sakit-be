@@ -147,8 +147,9 @@ const handleGoogleCallback = async (request, h) => {
       { expiresIn: process.env.JWT_EXPIRY }
     );
 
-    // Add Bearer prefix to token
-    const authToken = `Bearer ${jwtToken}`;
+    // Remove Bearer prefix
+    const authToken = jwtToken; 
+    const redirectUrl = `${FRONTEND_URL}/dashboard?token=${encodeURIComponent(authToken)}`;
     
     // Ensure FRONTEND_URL is properly configured
     if (!FRONTEND_URL) {
@@ -156,7 +157,6 @@ const handleGoogleCallback = async (request, h) => {
     }
 
     // Redirect with token
-    const redirectUrl = `${FRONTEND_URL}/dashboard?token=${encodeURIComponent(authToken)}`;
     console.log('Redirecting to:', redirectUrl);
     
     return h.redirect(redirectUrl).code(302);
