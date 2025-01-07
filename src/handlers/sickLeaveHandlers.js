@@ -1,17 +1,35 @@
 const OpenAI = require("openai");
 const { v4: uuidv4 } = require("uuid");
 const SickLeave = require("../models/SickLeave");
-const mongoose = require('mongoose'); // Add this import
-require("dotenv").config(); // Pastikan dotenv sudah di-load
+const mongoose = require("mongoose");
+const path = require('path');
+const dotenv = require('dotenv');
 
-// Inisialisasi OpenAI dengan OpenRouter
+// Load environment variables based on NODE_ENV
+dotenv.config({
+  path: path.resolve(
+    __dirname,
+    '../..',
+    process.env.NODE_ENV === "production" ? ".env.production" : ".env.development"
+  ),
+});
+
+// Debug log untuk memeriksa environment variables
+console.log('Environment:', process.env.NODE_ENV);
+console.log('OPENROUTER_API_KEY:', process.env.OPENROUTER_API_KEY ? 'Present' : 'Missing');
+console.log('Using config file:', path.resolve(
+  __dirname,
+  '../..',
+  process.env.NODE_ENV === "production" ? ".env.production" : ".env.development"
+));
+
 const openai = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
   apiKey: process.env.OPENROUTER_API_KEY,
   defaultHeaders: {
-    "HTTP-Referer": "http://localhost:5173", // Sesuaikan dengan URL frontend Anda
-    "X-Title": "Izin Sakit App",
-  },
+    "HTTP-Referer": process.env.FRONTEND_URL || "http://localhost:5173",
+    "X-Title": "Izin Sakit App"
+  }
 });
 
 // Fungsi untuk membuat form sick leave
@@ -34,13 +52,15 @@ const createSickLeaveForm = async (request, h) => {
     } = request.payload;
 
     // Ensure age is a number
-    age = typeof age === 'string' ? Number(age) : age;
+    age = typeof age === "string" ? Number(age) : age;
 
     if (isNaN(age)) {
-      return h.response({
-        message: "Age must be a valid number",
-        receivedData: { age, type: typeof age }
-      }).code(400);
+      return h
+        .response({
+          message: "Age must be a valid number",
+          receivedData: { age, type: typeof age },
+        })
+        .code(400);
     }
 
     // Reintroduce type coercion
@@ -137,7 +157,7 @@ const createSickLeaveForm = async (request, h) => {
       institution, // Save institution from payload
       contactEmail, // Save contactEmail
       phoneNumber, // Save phoneNumber
-      status: "Diajukan"
+      status: "Diajukan",
       // Remove the explicit _id assignment
     });
 
@@ -166,19 +186,21 @@ const createSickLeaveForm = async (request, h) => {
 // Fungsi untuk menyimpan jawaban pada form sick leave
 const saveAnswersHandler = async (request, h) => {
   const { formId, answers } = request.payload;
-  
+
   console.log("Received payload:", request.payload); // Debug log
 
   try {
     // Find the document first to verify it exists
     const sickLeave = await SickLeave.findById(formId);
-    
+
     if (!sickLeave) {
       console.log("Form not found for ID:", formId);
-      return h.response({ 
-        message: "Form not found",
-        statusCode: 404 
-      }).code(404);
+      return h
+        .response({
+          message: "Form not found",
+          statusCode: 404,
+        })
+        .code(404);
     }
 
     // Update with formatted answers
@@ -190,18 +212,22 @@ const saveAnswersHandler = async (request, h) => {
 
     console.log("Updated document:", updatedSickLeave); // Debug log
 
-    return h.response({ 
-      message: "Answers saved successfully",
-      formId: updatedSickLeave._id,
-      statusCode: 200
-    }).code(200);
+    return h
+      .response({
+        message: "Answers saved successfully",
+        formId: updatedSickLeave._id,
+        statusCode: 200,
+      })
+      .code(200);
   } catch (error) {
     console.error("Error saving answers:", error);
-    return h.response({ 
-      message: "Error saving answers",
-      error: error.message,
-      statusCode: 500 
-    }).code(500);
+    return h
+      .response({
+        message: "Error saving answers",
+        error: error.message,
+        statusCode: 500,
+      })
+      .code(500);
   }
 };
 
@@ -244,11 +270,11 @@ const getSickLeaves = async (request, h) => {
   try {
     const sickLeaves = await SickLeave.find()
       .sort({ date: -1 }) // Sort by date in descending order
-      .select('reason date status institution _id'); // Select only needed fields
-    
+      .select("reason date status institution _id"); // Select only needed fields
+
     // Debug log to check the structure
-    console.log('Fetched sick leaves:', sickLeaves);
-    
+    console.log("Fetched sick leaves:", sickLeaves);
+
     // Ensure we're sending an array
     return h.response(Array.isArray(sickLeaves) ? sickLeaves : []).code(200);
   } catch (error) {
@@ -268,11 +294,11 @@ const getDashboardSickLeaves = async (request, h) => {
         date: 1,
         status: 1,
         institution: 1,
-        username: 1
+        username: 1,
       })
       .lean(); // Use lean() for better performance since we only need the data
-    
-    console.log('Fetched dashboard data:', dashboardData); // Debug log
+
+    console.log("Fetched dashboard data:", dashboardData); // Debug log
     return h.response(dashboardData).code(200);
   } catch (error) {
     console.error("Error fetching dashboard data:", error);
@@ -283,22 +309,22 @@ const getDashboardSickLeaves = async (request, h) => {
 const getUserSickLeaves = async (request, h) => {
   try {
     // Add debug logging for the entire request
-    console.log('Full request:', {
+    console.log("Full request:", {
       auth: request.auth,
       headers: request.headers,
-      state: request.state
+      state: request.state,
     });
 
     // Get token from authorization header
     const authHeader = request.headers.authorization;
     if (!authHeader) {
-      return h.response({ message: 'No authorization header' }).code(401);
+      return h.response({ message: "No authorization header" }).code(401);
     }
 
     // Extract token
-    const token = authHeader.split(' ')[1];
+    const token = authHeader.split(" ")[1];
     if (!token) {
-      return h.response({ message: 'Invalid token format' }).code(401);
+      return h.response({ message: "Invalid token format" }).code(401);
     }
 
     // For now, return all sick leaves since we can't get user info
@@ -312,23 +338,22 @@ const getUserSickLeaves = async (request, h) => {
         institution: 1,
         username: 1,
         otherReason: 1,
-        contactEmail: 1
+        contactEmail: 1,
       })
       .lean();
 
-    console.log('Found sick leaves:', userSickLeaves);
-    
-    return h.response(userSickLeaves)
-      .type('application/json')
-      .code(200);
+    console.log("Found sick leaves:", userSickLeaves);
+
+    return h.response(userSickLeaves).type("application/json").code(200);
   } catch (error) {
     console.error("Error in getUserSickLeaves:", error);
-    return h.response({
-      message: "Error fetching user sick leaves",
-      error: error.message
-    })
-    .type('application/json')
-    .code(500);
+    return h
+      .response({
+        message: "Error fetching user sick leaves",
+        error: error.message,
+      })
+      .type("application/json")
+      .code(500);
   }
 };
 

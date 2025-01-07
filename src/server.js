@@ -11,10 +11,12 @@ const Pack = require("../package.json");
 
 // Load environment variables based on NODE_ENV
 dotenv.config({
-  path:
+  path: path.resolve(
+    __dirname,
     process.env.NODE_ENV === "production"
       ? ".env.production"
-      : ".env.development",
+      : ".env.development"
+  ),
 });
 
 const init = async () => {
