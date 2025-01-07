@@ -7,12 +7,10 @@ services:
     ports:
       - "3000:3000"
     env_file:
-      - .env
-    environment:
-      - NODE_ENV=production
+      - .env.production
     restart: unless-stopped
     volumes:
-      - ./logs:/app/logs
+      - ./temp:/usr/src/app/temp
     networks:
       - app-network
 

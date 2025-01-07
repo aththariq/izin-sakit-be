@@ -1,11 +1,11 @@
 node_modules
 npm-debug.log
-dist
 .git
 .env
 .env.*
+!.env.production
 *.md
 .gitignore
 .dockerignore
 Dockerfile
-docker-compose.yml
+docker-compose*.yml
