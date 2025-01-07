@@ -25,14 +25,7 @@ const init = async () => {
       port: process.env.PORT || 3000,
       host: process.env.NODE_ENV === "production" ? "0.0.0.0" : "localhost",
       routes: {
-        cors: {
-          origin:
-            process.env.NODE_ENV === "production"
-              ? [process.env.ALLOWED_ORIGIN]
-              : ["*"],
-          headers: ["Accept", "Authorization", "Content-Type", "If-None-Match"],
-          credentials: true,
-        },
+        cors: true,
         validate: {
           failAction: async (request, h, err) => {
             if (process.env.NODE_ENV === "production") {
@@ -84,7 +77,11 @@ const init = async () => {
     }
 
     // Connect to MongoDB
-    await mongoose.connect(process.env.MONGODB_URI);
+    await mongoose.connect(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+
     console.log("Connected to MongoDB");
 
     // Register routes
