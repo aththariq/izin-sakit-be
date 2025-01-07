@@ -10,10 +10,10 @@ dotenv.config();
 // Validasi FRONTEND_URL saat startup
 const FRONTEND_URL = process.env.FRONTEND_URL;
 if (!FRONTEND_URL) {
-  throw new Error('FRONTEND_URL environment variable is not configured');
+  throw new Error("FRONTEND_URL environment variable is not configured");
 }
 
-console.log('Frontend URL configured as:', FRONTEND_URL);
+console.log("Frontend URL configured as:", FRONTEND_URL);
 
 const registerUser = async (request, h) => {
   const { username, email, password } = request.payload;
@@ -87,31 +87,31 @@ const loginUser = async (request, h) => {
 };
 
 const handleGoogleCallback = async (request, h) => {
-  console.log('Received callback request:', request.query);
+  console.log("Received callback request:", request.query);
   const { code } = request.query;
 
   if (!code) {
-    console.error('No authorization code received');
-    return h.response({ message: 'Authorization code missing' }).code(400);
+    console.error("No authorization code received");
+    return h.response({ message: "Authorization code missing" }).code(400);
   }
 
   try {
-    const tokenUrl = 'https://oauth2.googleapis.com/token';
+    const tokenUrl = "https://oauth2.googleapis.com/token";
     const tokenData = {
       client_id: process.env.GOOGLE_CLIENT_ID,
       client_secret: process.env.GOOGLE_CLIENT_SECRET,
       code,
       redirect_uri: process.env.GOOGLE_REDIRECT_URI,
-      grant_type: 'authorization_code'
+      grant_type: "authorization_code",
     };
 
-    console.log('Requesting token with data:', {
+    console.log("Requesting token with data:", {
       ...tokenData,
-      client_secret: '[HIDDEN]'
+      client_secret: "[HIDDEN]",
     });
 
     const { data } = await axios.post(tokenUrl, tokenData);
-    console.log('Token response data:', data); // Debug log
+    console.log("Token response data:", data); // Debug log
 
     const { access_token } = data;
 
@@ -148,29 +148,23 @@ const handleGoogleCallback = async (request, h) => {
     );
 
     // Remove Bearer prefix
-    const authToken = jwtToken; 
-    const redirectUrl = `${FRONTEND_URL}/dashboard?token=${encodeURIComponent(authToken)}`;
-    
+    const authToken = jwtToken;
+    const redirectUrl = `${FRONTEND_URL}/login?token=${encodeURIComponent(
+      jwtToken
+    )}`;
+
     // Ensure FRONTEND_URL is properly configured
     if (!FRONTEND_URL) {
-      throw new Error('FRONTEND_URL is not configured');
+      throw new Error("FRONTEND_URL is not configured");
     }
 
     // Redirect with token
-    console.log('Redirecting to:', redirectUrl);
-    
+    console.log("Redirecting to:", redirectUrl);
+
     return h.redirect(redirectUrl).code(302);
-    
   } catch (error) {
-    console.error('Google OAuth error:', {
-      message: error.message,
-      response: error.response?.data,
-      stack: error.stack
-    });
-    
-    // Redirect ke halaman error di frontend
-    const errorRedirect = `${FRONTEND_URL}/error?message=${encodeURIComponent('Gagal login dengan Google')}`;
-    return h.redirect(errorRedirect).code(302);
+    console.error("Google OAuth error:", error);
+    return h.redirect(`${FRONTEND_URL}/login?error=auth_failed`).code(302);
   }
 };
 
