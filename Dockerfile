@@ -1,5 +1,8 @@
 FROM node:18-alpine
 
+# Install system dependencies for pdf2pic
+RUN apk add --no-cache imagemagick ghostscript
+
 WORKDIR /usr/src/app
 
 # Install dependencies
