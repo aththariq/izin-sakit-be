@@ -1,13 +1,21 @@
-require("dotenv").config();
+const dotenv = require("dotenv");
 const Hapi = require("@hapi/hapi");
 const Inert = require("@hapi/inert");
-const Vision = require('@hapi/vision');
-const HapiSwagger = require('hapi-swagger');
+const Vision = require("@hapi/vision");
+const HapiSwagger = require("hapi-swagger");
 const mongoose = require("mongoose");
-const path = require('path');
-const fs = require('fs');
+const path = require("path");
+const fs = require("fs");
 const routes = require("./routes");
-const Pack = require('../package.json');
+const Pack = require("../package.json");
+
+// Load environment variables based on NODE_ENV
+dotenv.config({
+  path:
+    process.env.NODE_ENV === "production"
+      ? ".env.production"
+      : ".env.development",
+});
 
 const init = async () => {
   try {
@@ -16,58 +24,60 @@ const init = async () => {
       host: process.env.NODE_ENV === "production" ? "0.0.0.0" : "localhost",
       routes: {
         cors: {
-          origin: ["*"],
+          origin:
+            process.env.NODE_ENV === "production"
+              ? [process.env.ALLOWED_ORIGIN]
+              : ["*"],
           headers: ["Accept", "Authorization", "Content-Type", "If-None-Match"],
-          credentials: true
+          credentials: true,
         },
         validate: {
           failAction: async (request, h, err) => {
-            if (process.env.NODE_ENV === 'production') {
-              console.error('ValidationError:', err.message);
-              throw new Error('Invalid request payload input');
+            if (process.env.NODE_ENV === "production") {
+              console.error("ValidationError:", err.message);
+              throw new Error("Invalid request payload input");
             } else {
               console.error(err);
               throw err;
             }
-          }
-        }
+          },
+        },
       },
     });
 
     const swaggerOptions = {
       info: {
-        title: 'Izin Sakit API Documentation',
+        title: "Izin Sakit API Documentation",
         version: Pack.version,
-        description: 'Documentation for the Izin Sakit REST API'
+        description: "Documentation for the Izin Sakit REST API",
       },
       securityDefinitions: {
         jwt: {
-          type: 'apiKey',
-          name: 'Authorization',
-          in: 'header',
-          description: 'Use format: Bearer <token>'
-        }
+          type: "apiKey",
+          name: "Authorization",
+          in: "header",
+          description: "Use format: Bearer <token>",
+        },
       },
       security: [{ jwt: [] }],
-      documentationPath: '/documentation',
+      documentationPath: "/documentation",
       swaggerUI: true,
-      jsonPath: '/swagger.json',
-      sortEndpoints: 'ordered'
+      jsonPath: "/swagger.json",
+      sortEndpoints: "ordered",
     };
 
-    // Register plugins with specific order
     await server.register([
       Inert,
       Vision,
       {
         plugin: HapiSwagger,
-        options: swaggerOptions
-      }
+        options: swaggerOptions,
+      },
     ]);
 
     // Create temp directory if it doesn't exist
-    const tempDir = path.join(__dirname, '../temp');
-    if (!fs.existsSync(tempDir)){
+    const tempDir = path.join(__dirname, "../temp");
+    if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
     }
 
@@ -79,14 +89,18 @@ const init = async () => {
     server.route(routes);
 
     // Log registered routes
-    console.log("\nRegistered Routes:");
-    server.table().forEach(route => {
-      console.log(`${route.method}\t${route.path}`);
-    });
+    if (process.env.NODE_ENV !== "production") {
+      console.log("\nRegistered Routes:");
+      server.table().forEach((route) => {
+        console.log(`${route.method}\t${route.path}`);
+      });
+    }
 
     await server.start();
     console.log(`Server running on ${server.info.uri}`);
-    console.log('Documentation available at: /documentation');
+    if (process.env.NODE_ENV !== "production") {
+      console.log("Documentation available at: /documentation");
+    }
   } catch (err) {
     console.error("Server initialization error:", err);
     process.exit(1);
