@@ -25,7 +25,11 @@ const init = async () => {
       port: process.env.PORT || 3000,
       host: process.env.NODE_ENV === "production" ? "0.0.0.0" : "localhost",
       routes: {
-        cors: true,
+        cors: {
+          origin: ["*"],
+          additionalHeaders: ["cache-control", "x-requested-with", "authorization"],
+          credentials: true
+        },
         validate: {
           failAction: async (request, h, err) => {
             if (process.env.NODE_ENV === "production") {

@@ -147,8 +147,16 @@ const handleGoogleCallback = async (request, h) => {
       { expiresIn: process.env.JWT_EXPIRY }
     );
 
-    // Simplified redirect logic
-    const redirectUrl = `${FRONTEND_URL}/dashboard?token=${jwtToken}`;
+    // Add Bearer prefix to token
+    const authToken = `Bearer ${jwtToken}`;
+    
+    // Ensure FRONTEND_URL is properly configured
+    if (!FRONTEND_URL) {
+      throw new Error('FRONTEND_URL is not configured');
+    }
+
+    // Redirect with token
+    const redirectUrl = `${FRONTEND_URL}/dashboard?token=${encodeURIComponent(authToken)}`;
     console.log('Redirecting to:', redirectUrl);
     
     return h.redirect(redirectUrl).code(302);
