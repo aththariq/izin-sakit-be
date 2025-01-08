@@ -33,86 +33,94 @@ const routes = [
       };
     },
     options: {
-      description: 'Welcome endpoint',
-      notes: 'Returns a welcome message',
-      tags: ['api'],
+      description: "Welcome endpoint",
+      notes: "Returns a welcome message",
+      tags: ["api"],
       plugins: {
-        'hapi-swagger': {
+        "hapi-swagger": {
           responses: {
-            '200': {
-              description: 'Success',
+            200: {
+              description: "Success",
               schema: Joi.object({
-                message: Joi.string().required()
-              })
-            }
-          }
-        }
-      }
-    }
+                message: Joi.string().required(),
+              }),
+            },
+          },
+        },
+      },
+    },
   },
   {
     method: "POST",
     path: "/register",
     handler: registerUser,
     options: {
-      description: 'Register new user',
-      notes: 'Creates a new user account',
-      tags: ['api', 'users'],
+      description: "Register new user",
+      notes: "Creates a new user account",
+      tags: ["api", "users"],
       validate: {
         payload: Joi.object({
-          username: Joi.string().min(3).max(30).required()
-            .description('Username between 3-30 characters'),
-          email: Joi.string().email().required()
-            .description('Valid email address'),
-          password: Joi.string().min(8).required()
-            .description('Password minimum 8 characters')
-        })
+          username: Joi.string()
+            .min(3)
+            .max(30)
+            .required()
+            .description("Username between 3-30 characters"),
+          email: Joi.string()
+            .email()
+            .required()
+            .description("Valid email address"),
+          password: Joi.string()
+            .min(8)
+            .required()
+            .description("Password minimum 8 characters"),
+        }),
       },
       response: {
         schema: Joi.object({
-          message: Joi.string()
-        })
+          message: Joi.string(),
+        }),
       },
       plugins: {
-        'hapi-swagger': {
+        "hapi-swagger": {
           responses: {
-            '201': {
-              description: 'User created successfully',
+            201: {
+              description: "User created successfully",
               schema: Joi.object({
-                message: Joi.string()
-              })
+                message: Joi.string(),
+              }),
             },
-            '400': {
-              description: 'Bad Request'
-            }
-          }
-        }
-      }
-    }
+            400: {
+              description: "Bad Request",
+            },
+          },
+        },
+      },
+    },
   },
   {
     method: "POST",
     path: "/login",
     handler: loginUser,
     options: {
-      description: 'User login',
-      notes: 'Authenticates user and returns JWT token',
-      tags: ['api', 'users'],
+      description: "User login",
+      notes: "Authenticates user and returns JWT token",
+      tags: ["api", "users"],
       validate: {
         payload: Joi.object({
-          email: Joi.string().email().required()
-            .description('Registered email address'),
-          password: Joi.string().min(8).required()
-            .description('User password')
-        })
+          email: Joi.string()
+            .email()
+            .required()
+            .description("Registered email address"),
+          password: Joi.string().min(8).required().description("User password"),
+        }),
       },
       response: {
         schema: Joi.object({
           message: Joi.string(),
-          token: Joi.string()
-        })
-      }
-    }
+          token: Joi.string(),
+        }),
+      },
+    },
   },
   {
     method: "POST",
@@ -173,7 +181,7 @@ const routes = [
           gender: Joi.string().valid("male", "female").required(),
           age: Joi.number().min(1).required(),
           contactEmail: Joi.string().email().required(),
-          phoneNumber: Joi.string().min(1).required()
+          phoneNumber: Joi.string().min(1).required(),
         }),
       },
     },
@@ -204,9 +212,12 @@ const routes = [
     handler: generateAndSendPDF,
     options: {
       cors: {
-        origin: ["*"],
-        additionalHeaders: ["cache-control", "x-requested-with"],
+        origin: ["https://www.izinsakit.site", "https://izinsakit.site"],
         credentials: true,
+      },
+      timeout: {
+        server: 300000, // 5 menit
+        socket: 310000,
       },
     },
   },
@@ -216,12 +227,17 @@ const routes = [
     path: "/temp/{param*}",
     handler: {
       directory: {
-        path: "./temp",
+        path: path.join(__dirname, "../temp"),
         listing: false,
+        index: false,
       },
     },
     options: {
-      cors: true,
+      cors: {
+        origin: ["https://www.izinsakit.site", "https://izinsakit.site"],
+        credentials: true,
+      },
+      auth: false,
     },
   },
   {
@@ -229,7 +245,14 @@ const routes = [
     path: "/api/convert-pdf-to-image/{id}",
     handler: convertPdfToImageHandler,
     options: {
-      cors: true,
+      cors: {
+        origin: ["https://www.izinsakit.site", "https://izinsakit.site"],
+        credentials: true,
+      },
+      timeout: {
+        server: 300000,
+        socket: 310000,
+      },
     },
   },
   {
@@ -264,9 +287,13 @@ const routes = [
       pre: [{ method: verifyToken }],
       cors: {
         origin: ["*"],
-        additionalHeaders: ["cache-control", "x-requested-with", "authorization"],
-        credentials: true
-      }
+        additionalHeaders: [
+          "cache-control",
+          "x-requested-with",
+          "authorization",
+        ],
+        credentials: true,
+      },
     },
   },
 ];

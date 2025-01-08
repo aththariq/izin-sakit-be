@@ -26,19 +26,27 @@ const init = async () => {
       host: process.env.NODE_ENV === "production" ? "0.0.0.0" : "localhost",
       routes: {
         cors: {
-          origin: ["*"],
-          additionalHeaders: ["cache-control", "x-requested-with", "authorization"],
-          credentials: true
+          origin: ["https://www.izinsakit.site", "https://izinsakit.site"],
+          headers: [
+            "Accept",
+            "Authorization",
+            "Content-Type",
+            "If-None-Match",
+            "Accept-language",
+          ],
+          additionalHeaders: [
+            "cache-control",
+            "x-requested-with",
+            "access-control-allow-origin",
+          ],
+          exposedHeaders: ["Accept"],
+          maxAge: 86400,
+          credentials: true,
         },
-        validate: {
-          failAction: async (request, h, err) => {
-            if (process.env.NODE_ENV === "production") {
-              console.error("ValidationError:", err.message);
-              throw new Error("Invalid request payload input");
-            } else {
-              console.error(err);
-              throw err;
-            }
+        routes: {
+          payload: {
+            maxBytes: 10485760, // 10MB
+            timeout: 300000, // 5 menit
           },
         },
       },

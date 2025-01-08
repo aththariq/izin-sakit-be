@@ -1,7 +1,22 @@
 FROM node:18-alpine
 
-# Install system dependencies for pdf2pic
-RUN apk add --no-cache imagemagick ghostscript
+# Install semua dependencies yang diperlukan
+RUN apk add --no-cache \
+    imagemagick \
+    ghostscript \
+    imagemagick-dev \
+    ghostscript-fonts \
+    msttcorefonts-installer \
+    fontconfig \
+    && update-ms-fonts \
+    && fc-cache -f
+
+# Konfigurasi ImageMagick policy
+RUN mkdir -p /etc/ImageMagick-7 \
+    && echo '<policymap> \
+    <policy domain="coder" rights="read|write" pattern="PDF" /> \
+    <policy domain="coder" rights="read|write" pattern="LABEL" /> \
+    </policymap>' > /etc/ImageMagick-7/policy.xml
 
 WORKDIR /usr/src/app
 
