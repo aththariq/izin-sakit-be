@@ -543,15 +543,6 @@ const convertPdfToImageHandler = async (request, h) => {
       .code(500);
   }
 };
-};
-
-// Make sure export matches the imported name in routes
-module.exports = {
-  generateAndSendPDF,
-  convertPdfToImageHandler,
-};
-
-
 
 // Make sure export matches the imported name in routes
 module.exports = {
