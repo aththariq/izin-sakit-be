@@ -12,12 +12,6 @@ services:
       - ./temp:/usr/src/app/temp
     depends_on:
       - redis
-    environment:
-      - REDIS_HOST=localhost
-      - REDIS_PORT=6379
-      - BREVO_SMTP_USER=${BREVO_SMTP_USER}
-      - BREVO_SMTP_KEY=${BREVO_SMTP_KEY}
-      - EMAIL_USER=${EMAIL_USER}
 
   redis:
     image: redis:6.2-alpine
