@@ -252,12 +252,20 @@ const routes = [
     path: "/api/generate-pdf/{id}",
     handler: generateAndSendPDF,
     options: {
-      cors: corsOptions, // Ensure CORS options are applied
-      timeout: {
-        server: 300000, // 5 minutes
-        socket: 310000,
+      cors: {
+        origin: ["*"],
+        additionalHeaders: ["X-Requested-With"],
+        credentials: true
       },
-    },
+      timeout: {
+        server: 600000, // 10 minutes
+        socket: 620000  // 10 minutes + 20 seconds
+      },
+      cache: {
+        expiresIn: 30 * 60 * 1000, // Cache for 30 minutes
+        privacy: 'public'
+      }
+    }
   },
   // Add static file serving route
   {

@@ -27,41 +27,18 @@ const init = async () => {
       host: process.env.NODE_ENV === "production" ? "0.0.0.0" : "localhost",
       routes: {
         cors: {
-          origin: [
-            "https://www.izinsakit.site",
-            "https://izinsakit.site",
-            "https://izin-sakit.vercel.app",
-          ],
-          headers: [
-            "Accept",
-            "Authorization",
-            "Content-Type",
-            "If-None-Match",
-            "Accept-language",
-            "cache-control",
-            "x-requested-with",
-            "access-control-allow-origin",
-            "access-control-allow-headers",
-            "access-control-expose-headers",
-            "access-control-allow-credentials",
-          ],
-          exposedHeaders: [
-            "Accept",
-            "Content-Type",
-            "Authorization",
-            "access-control-allow-origin",
-          ],
-          additionalHeaders: [
-            "cache-control",
-            "x-requested-with",
-            "access-control-allow-origin",
-          ],
+          origin: ["https://www.izinsakit.site", "http://www.izinsakit.site"],
           credentials: true,
-          maxAge: 86400,
+          headers: ["Accept", "Content-Type", "Authorization"],
+          additionalHeaders: ["X-Requested-With"],
         },
         payload: {
-          maxBytes: 10485760,
-          timeout: 300000,
+          maxBytes: 50 * 1024 * 1024, // Increase to 50MB
+          timeout: 600000, // 10 minutes
+        },
+        timeout: {
+          server: 600000, // 10 minutes
+          socket: 620000, // 10 minutes + 20 seconds
         },
       },
     });
