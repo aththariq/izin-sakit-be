@@ -23,6 +23,8 @@ const verifyToken = require("../utils/jwtMiddleware");
 const Joi = require("@hapi/joi");
 const path = require("path");
 const fs = require("fs");
+const { generatePDF } = require('../handlers/pdfGenerationHandler');
+const { sendPDFEmail } = require('../handlers/emailHandler');
 
 const corsOptions = {
   origin: [
@@ -337,6 +339,37 @@ const routes = [
       auth: false,
     },
   },
+  {
+    method: 'POST',
+    path: '/api/generate-pdf/{id}',
+    handler: generatePDF,
+    options: {
+      description: 'Generate PDF document',
+      tags: ['api', 'pdf'],
+      validate: {
+        params: Joi.object({
+          id: Joi.string().required()
+        })
+      }
+    }
+  },
+  {
+    method: 'POST',
+    path: '/api/send-pdf/{id}',
+    handler: sendPDFEmail,
+    options: {
+      description: 'Send generated PDF via email',
+      tags: ['api', 'pdf', 'email'],
+      validate: {
+        params: Joi.object({
+          id: Joi.string().required()
+        }),
+        payload: Joi.object({
+          email: Joi.string().email().required()
+        })
+      }
+    }
+  }
 ];
 
 module.exports = routes;
