@@ -6,6 +6,18 @@ const nodemailer = require("nodemailer");
 const SickLeave = require("../models/SickLeave");
 const pdf2pic = require("pdf2pic");
 const { sendEmailWithAttachment } = require("./sendEmail");
+const { performance } = require('perf_hooks');
+const { cacheManager, getCacheKey } = require('../utils/cache');
+const rateLimiter = require('../utils/rateLimit');
+const logger = require('../utils/logger');
+
+class PDFGenerationError extends Error {
+  constructor(message, cause) {
+    super(message);
+    this.name = 'PDFGenerationError';
+    this.cause = cause;
+  }
+}
 
 const openai = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
@@ -125,17 +137,27 @@ async function analyzeAnswers(sickLeave) {
   }
 }
 
-// Add a standalone function to generate PDF
-async function generatePDF(sickLeave, filePath) {
-  console.log(`Generating PDF for SickLeave ID: ${sickLeave._id}`); // Added logging
+// Separate PDF generation logic
+async function generatePDFDocument(sickLeave, filePath) {
+  const startTime = performance.now();
+  logger.info(`Starting PDF generation for ID: ${sickLeave._id}`);
 
-  const doc = new PDFDocument({
-    size: "A4",
-    margin: 50,
-  });
-  const writeStream = fs.createWriteStream(filePath);
+  try {
+    await rateLimiter.acquire('pdf_generation');
+    const doc = new PDFDocument({
+      size: "A4",
+      margin: 50,
+      bufferPages: true // Enable buffer for memory optimization
+    });
 
-  return new Promise((resolve, reject) => {
+    // Create write stream with error handling
+    const writeStream = fs.createWriteStream(filePath);
+    const streamPromise = new Promise((resolve, reject) => {
+      writeStream.on('error', reject);
+      writeStream.on('finish', resolve);
+    });
+
+    // Pipe with error handling
     doc.pipe(writeStream);
 
     // Fungsi helper untuk membuat header section
@@ -278,217 +300,124 @@ async function generatePDF(sickLeave, filePath) {
         }
       );
 
+    // Finalize document
     doc.end();
-    writeStream.on("finish", () => {
-      console.log(`PDF successfully saved at ${filePath}.`); // Added logging
-      resolve(filePath);
-    });
-    writeStream.on("error", (err) => {
-      console.error(`Error writing PDF to ${filePath}:`, err); // Added logging
-      reject(err);
-    });
-  });
+    await streamPromise;
+
+    const endTime = performance.now();
+    logger.info(`PDF generation completed in ${endTime - startTime}ms`);
+    
+    return filePath;
+  } catch (error) {
+    throw new PDFGenerationError('Failed to generate PDF', error);
+  } finally {
+    rateLimiter.release('pdf_generation');
+  }
 }
 
-// Modify generateAndSendPDF to include contact information and additional details in the email prompt
+// Main handler with caching
 const generateAndSendPDF = async (request, h) => {
+  const startTime = performance.now();
+  const { id } = request.params;
+  const { email, format } = request.query;
+  
   try {
-    const { id } = request.params;
-    const { email, format } = request.query; // Email opsional untuk pengiriman
+    // Check cache first
+    const cacheKey = getCacheKey(id);
+    let pdfPath = cacheManager.get(cacheKey);
+    let cacheHit = !!pdfPath;
 
-    try {
+    if (!pdfPath) {
+      logger.info(`Cache miss for PDF ${id}, generating new file`);
+      
       const sickLeave = await SickLeave.findById(id);
       if (!sickLeave) {
-        return h.response({ message: "Sick leave not found" }).code(404);
+        throw new Error('Sick leave not found');
       }
 
-      // Path untuk menyimpan PDF
-      const filePath = path.join(
-        __dirname,
-        `../../temp/surat_izin_sakit_${id}.pdf`
-      );
-
-      let analysis; // Define analysis variable
-
-      // Check if PDF already exists
-      if (!fs.existsSync(filePath)) {
-        // Get or generate analysis
-        analysis = await analyzeAnswers(sickLeave);
-
-        // Generate PDF
-        await generatePDF(sickLeave, filePath);
-
-        // Generate image once PDF is created
-        // Assuming convertPdfToImageHandler handles image generation
-      } else {
-        analysis = sickLeave.analisis; // Retrieve existing analysis
-      }
-
-      // If preview requested, convert first page to PNG
-      if (format === "preview") {
-        const options = {
-          density: 100,
-          saveFilename: `preview_${id}`,
-          savePath: path.join(__dirname, "../../temp"),
-          format: "png",
-          width: 595, // A4 width in pixels at 72 DPI
-          height: 842, // A4 height in pixels at 72 DPI
-        };
-
-        const convert = pdf2pic.fromPath(filePath, options);
-        const pageImage = await convert(1); // Convert first page
-
-        return h.file(pageImage.path, {
-          mode: "inline",
-          filename: "preview.png",
-          headers: {
-            "Content-Type": "image/png",
-          },
-        });
-      }
-
-      // Generate personalized email subject and body using Open Router AI
-      const prompt = `
-Buatkan surat permohonan izin sakit yang formal dengan data berikut:
-- Nama: ${sickLeave.username}
-- Jabatan/Kelas: ${sickLeave.position}
-- Institusi: ${sickLeave.institution}
-- Diagnosis: ${sickLeave.reason} ${
-        sickLeave.otherReason ? `(${sickLeave.otherReason})` : ""
-      }
-- Tanggal Izin: ${new Date(sickLeave.date).toLocaleDateString("id-ID")}
-- Hasil Pemeriksaan: ${sickLeave.analisis}
-- Rekomendasi Medis: ${sickLeave.rekomendasi}
-- Catatan Medis: ${sickLeave.catatan}
-- Nomor Telepon: ${sickLeave.phoneNumber}
-- Email: ${sickLeave.contactEmail}
-
-Buat format JSON dengan struktur berikut:
-{
-  "subject": "Permohonan Izin Sakit - [Nama] - [Tanggal]",
-  "body": "Surat formal dengan format:
-
-  Yth.
-  [Pimpinan/Atasan sesuai konteks, contoh: Kepala Departemen IT !!EDIT DENGAN SESUAIKAN KONTEKS SURAT!!]
-  [Nama Institusi]
-  di Tempat
-
-  Dengan hormat,
-
-  [Paragraf 1: Perkenalan diri dan maksud surat. Contoh: Saya, [Nama], [Jabatan] di [Institusi], dengan ini mengajukan permohonan izin sakit...]
-  
-  [Paragraf 2: Penjelasan kondisi medis berdasarkan hasil pemeriksaan. Gunakan bahasa yang sopan dan objektif.]
-  
-  [Paragraf 3: Sebutkan durasi izin dengan jelas dan cantumkan rekomendasi medis. Contoh: Berdasarkan rekomendasi dokter, saya memerlukan istirahat selama...]
-  
-  [Paragraf 4: Berikan informasi kontak yang jelas untuk komunikasi lebih lanjut.]
-  
-  [Penutup formal, contoh: Demikian permohonan ini saya sampaikan. Atas perhatian dan kebijaksanaan Bapak/Ibu, saya ucapkan terima kasih.]
-
-  Hormat saya,
-  [Nama Lengkap]
-  
-  Kontak:
-  No. Telp: [Nomor Telepon]
-  Email: [Email]"
-}
-
-Instruksi tambahan:
-1. Gunakan bahasa Indonesia yang formal, sopan, dan profesional.
-2. Sesuaikan penyebutan pimpinan/atasan dengan konteks institusi (misal: Kepala Sekolah untuk siswa, Manajer untuk karyawan).
-3. Jelaskan kondisi medis secara ringkas namun informatif, tanpa mengulangi informasi yang sudah ada di bagian lain surat.
-4. Pastikan setiap paragraf memiliki transisi yang baik dan saling terkait.
-5. Hindari penggunaan kata-kata yang berlebihan atau terlalu dramatis.
-6. Format tanggal dalam bentuk standar Indonesia (contoh: 7 Januari 2025).
-
-Output harus berupa JSON yang valid tanpa teks tambahan di luar struktur JSON.
-`;
-
-      const completion = await openai.chat.completions.create({
-        model: "google/gemini-pro",
-        messages: [
-          {
-            role: "system",
-            content:
-              "Anda adalah penulis surat profesional yang akan membuat surat izin sakit formal dalam format JSON. Fokus pada pembuatan narasi yang mengalir dan formal.",
-          },
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-        temperature: 0.7,
-      });
-
-      const aiResponse = completion.choices[0].message.content.trim();
-      console.log("AI Email Response before sanitization:", aiResponse); // Added logging
-
-      // Sanitize the AI response by removing unwanted control characters
-      const sanitizedResponse = aiResponse.replace(/[\u0000-\u001F\u007F]/g, "");
-      console.log("AI Email Response after sanitization:", sanitizedResponse); // Added logging
-
-      // Extract JSON from response
-      const jsonMatch = sanitizedResponse.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error("Invalid JSON format in AI email response");
-      }
-
-      const jsonStr = jsonMatch[0];
-      let emailData;
-      try {
-        emailData = JSON.parse(jsonStr);
-      } catch (e) {
-        throw new Error("Failed to parse AI email JSON response");
-      }
-
-      // Validate required fields
-      if (!emailData.subject || !emailData.body) {
-        throw new Error("Missing 'subject' or 'body' in AI email response");
-      }
-
-      // Kirim email jika ada alamat email
-      if (email) {
-        await sendEmailWithAttachment(
-          email,
-          emailData.subject, // Use dynamic subject
-          emailData.body, // Use dynamic body
-          {
-            filename: "surat_keterangan_sakit.pdf",
-            path: filePath,
-          }
-        );
-
-        return h
-          .response({
-            message: "PDF generated and sent to email successfully",
-            analysis, // Ensure analysis is defined
-          })
-          .code(200);
-      }
-
-      // Return PDF file dengan header yang tepat
-      return h.file(filePath, {
-        mode: "inline",
-        filename: "surat_keterangan_sakit.pdf",
-        headers: {
-          "Content-Type": "application/pdf",
-          "Content-Disposition": "inline; filename=surat_keterangan_sakit.pdf",
-        },
-      });
-    } catch (error) {
-      console.error("Error:", error);
-      return h
-        .response({
-          message: "Error processing request",
-          error: error.message,
-        })
-        .code(500);
+      pdfPath = path.join(__dirname, `../../temp/surat_izin_sakit_${id}.pdf`);
+      
+      // Get or generate analysis
+      const analysis = await analyzeAnswers(sickLeave);
+      
+      // Generate PDF
+      await generatePDFDocument(sickLeave, pdfPath);
+      
+      // Cache the result
+      cacheManager.set(cacheKey, pdfPath);
+    } else {
+      logger.info(`Cache hit for PDF ${id}`);
     }
+
+    // Handle preview format
+    if (format === "preview") {
+      return await handlePreviewGeneration(pdfPath, id);
+    }
+
+    // If email is provided, send it
+    if (email) {
+      await sendEmailWithPDF(email, pdfPath, id);
+      return h.response({
+        message: 'PDF generated and sent successfully',
+        cacheHit,
+        executionTime: performance.now() - startTime
+      });
+    }
+
+    // Stream the file
+    return h.file(pdfPath, {
+      mode: 'inline',
+      filename: 'surat_keterangan_sakit.pdf',
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Cache-Control': 'public, max-age=3600'
+      }
+    });
+
   } catch (error) {
-    console.error("Error generating PDF:", error); // Detailed error logging
-    return h.response({ message: "Failed to generate PDF." }).code(500);
+    logger.error('PDF generation/sending failed:', {
+      error: error.message,
+      stack: error.stack,
+      id,
+      email
+    });
+
+    if (error instanceof PDFGenerationError) {
+      try {
+        return await generateFallbackPDF(id);
+      } catch (fallbackError) {
+        logger.error('Fallback PDF generation failed:', fallbackError);
+      }
+    }
+
+    return h.response({
+      message: 'Error processing request',
+      error: error.message
+    }).code(500);
   }
 };
+
+async function handlePreviewGeneration(pdfPath, id) {
+  const options = {
+    density: 100,
+    saveFilename: `preview_${id}`,
+    savePath: path.join(__dirname, "../../temp"),
+    format: "png",
+    width: 595,
+    height: 842
+  };
+
+  const convert = pdf2pic.fromPath(pdfPath, options);
+  const pageImage = await convert(1);
+
+  return h.file(pageImage.path, {
+    mode: "inline",
+    filename: "preview.png",
+    headers: {
+      "Content-Type": "image/png"
+    }
+  });
+}
 
 const convertPdfToImageHandler = async (request, h) => {
   const { id } = request.params;
@@ -548,4 +477,5 @@ const convertPdfToImageHandler = async (request, h) => {
 module.exports = {
   generateAndSendPDF,
   convertPdfToImageHandler,
+  generatePDFDocument // Exported for testing
 };
