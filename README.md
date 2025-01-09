@@ -11,6 +11,23 @@ IzinSakit adalah platform inovatif yang memungkinkan pengguna untuk membuat sura
 - [Example Response](#example-response)
 - [Example cURL Request](#example-curl-request)
 
+## Links
+
+- 🔗 [Frontend Service Izinsakit.site](https://izinsakit.site)
+- 🔗 [Dokumen Laporan](https://example.com/dokumen)
+
+## Checklist
+
+- [x] Dokumentasi Github
+- [x] Connect ke Service Teman
+- [x] HTTPS
+- [x] Personal Domain
+- [x] Utilize Docker
+- [x] Oauth + JWT
+- [x] JavaScript + React + Hapi
+- [x] PDF to IMG Converter Using ImageMagick and GhostScript
+- [x] Personal VPS Deployment
+
 ## Endpoints
 
 ### 1. Welcome Endpoint
