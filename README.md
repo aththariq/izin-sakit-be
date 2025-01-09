@@ -22,15 +22,17 @@ IzinSakit adalah platform inovatif yang memungkinkan pengguna untuk membuat sura
 
 | Status | Task |
 |--------|------|
-| :heavy_check_mark: | Dokumentasi Github |
-| :heavy_check_mark: | Connect ke Service Teman |
-| :heavy_check_mark: | HTTPS |
-| :heavy_check_mark: | Personal Domain |
-| :heavy_check_mark: | Utilize Docker |
-| :heavy_check_mark: | Oauth + JWT |
-| :heavy_check_mark: | JavaScript + React + Hapi |
-| :heavy_check_mark: | PDF to IMG Converter Using ImageMagick and GhostScript |
-| :heavy_check_mark: | Personal VPS Deployment |
+| :white_check_mark: | Dokumentasi Github |
+| :white_check_mark: | Connect ke Service Teman |
+| :white_check_mark: | HTTPS |
+| :white_check_mark:| Personal Domain |
+| :white_check_mark: | Utilize Docker |
+| :white_check_mark: | Oauth + JWT |
+| :white_check_mark: | JavaScript + React + Hapi |
+| :white_check_mark: | PDF to IMG Converter Using ImageMagick and GhostScript |
+| :white_check_mark: | Personal VPS Deployment |
+| :white_check_mark: | Utilize AI |
+
 
 ## Endpoints
 
