@@ -1,20 +1,20 @@
 const nodemailer = require("nodemailer");
-const logger = require('../utils/logger');
+const logger = require("../utils/logger");
 
 // Create a transporter using environment variables
 const transporter = nodemailer.createTransport({
   service: "gmail",
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true,
+  host: "142.251.175.109",
+  port: 587,
+  secure: false, // Gunakan STARTTLS
   auth: {
-    user: process.env.EMAIL_USER, // Your Gmail address
-    pass: process.env.EMAIL_PASSWORD, // Your Gmail password or App Password
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASSWORD,
   },
-  pool: true, // Enable connection pooling
-  maxConnections: 5, // Adjust based on your needs
-  rateLimit: 10, // Allow up to 10 emails per second
-  rateDelta: 1000, // Per second
+  pool: true,
+  maxConnections: 5,
+  rateLimit: 10,
+  rateDelta: 1000,
 });
 
 // Function to send email with attachment
