@@ -31,7 +31,7 @@ IzinSakit adalah platform inovatif yang memungkinkan pengguna untuk membuat sura
 | :white_check_mark: | JavaScript + React + Hapi |
 | :white_check_mark: | PDF to IMG Converter Using ImageMagick and GhostScript |
 | :white_check_mark: | Personal VPS Deployment |
-| :white_check_mark: | Utilize AI |
+| :white_check_mark: | Utilize AI: Google Gemini Flash Experiment|
 
 
 ## Endpoints
