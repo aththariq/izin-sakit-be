@@ -9,6 +9,7 @@ const path = require("path");
 const fs = require("fs");
 const routes = require("./routes");
 const Pack = require("../package.json");
+const corsMiddleware = require('./middleware/cors');
 
 // Load environment variables based on NODE_ENV
 dotenv.config({
@@ -78,6 +79,7 @@ const init = async () => {
         plugin: HapiSwagger,
         options: swaggerOptions,
       },
+      corsMiddleware  // Add this line
     ]);
 
     // Create temp directory if it doesn't exist
@@ -122,3 +124,5 @@ process.on("unhandledRejection", (err) => {
 });
 
 init();
+init();
+
