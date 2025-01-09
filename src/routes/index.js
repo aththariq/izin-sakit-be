@@ -31,8 +31,9 @@ const corsOptions = {
     "https://www.izinsakit.site",
     "http://izinsakit.site",
     "https://izin-sakit.vercel.app",
-    "http://localhost:5173", // Add localhost for development
+    "http://localhost:5173",
   ],
+  credentials: true,
   headers: [
     "Accept",
     "Authorization",
@@ -43,13 +44,8 @@ const corsOptions = {
     "x-requested-with",
     "Origin",
   ],
-  methods: ["GET", "POST", "OPTIONS"],
   exposedHeaders: ["Accept", "Content-Type", "Authorization"],
-  additionalExposedHeaders: ["access-control-allow-origin"],
   maxAge: 86400,
-  credentials: true,
-  preflightContinue: false, // Tambahkan ini
-  optionsSuccessStatus: 204, // Tambahkan ini
 };
 
 const standardRouteOptions = {
@@ -329,7 +325,7 @@ const routes = [
     options: {
       cors: {
         ...corsOptions,
-        origin: ["https://www.izinsakit.site"], 
+        origin: ["https://www.izinsakit.site"],
         credentials: true,
       },
       timeout: {
