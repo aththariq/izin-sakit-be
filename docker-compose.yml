@@ -4,8 +4,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
+    network_mode: "host"  # Ubah ke network mode host
     env_file:
       - .env.production
     restart: unless-stopped
@@ -14,26 +13,20 @@ services:
     depends_on:
       - redis
     environment:
-      - REDIS_HOST=redis
+      - REDIS_HOST=localhost  # Ubah karena menggunakan network host
       - REDIS_PORT=6379
-    networks:
-      - app-network
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv4.conf.all.route_localnet=1
 
   redis:
     image: redis:6.2-alpine
     restart: always
-    ports:
-      - "6379:6379"
+    network_mode: "host"  # Ubah ke network mode host
     command: redis-server --save 20 1 --loglevel warning
     volumes:
       - redis_data:/data
-    networks:
-      - app-network
 
 volumes:
   redis_data:
     driver: local
-
-networks:
-  app-network:
-    driver: bridge
