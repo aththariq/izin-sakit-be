@@ -13,20 +13,24 @@ IzinSakit adalah platform inovatif yang memungkinkan pengguna untuk membuat sura
 
 ## Links
 
-- 🔗 [Frontend Service Izinsakit.site](https://izinsakit.site)
+- 🔗 [Website Izinsakit.site](https://izinsakit.site)
 - 🔗 [Dokumen Laporan](https://example.com/dokumen)
+- 🔗 [Repo Frontend](https://github.com/aththariq/izin-sakit-fe.git)
+- 🔗 [Backend Link api.izinsakit.site](https:/api.izinsakit.site)
 
 ## Checklist
 
-- [x] Dokumentasi Github
-- [x] Connect ke Service Teman
-- [x] HTTPS
-- [x] Personal Domain
-- [x] Utilize Docker
-- [x] Oauth + JWT
-- [x] JavaScript + React + Hapi
-- [x] PDF to IMG Converter Using ImageMagick and GhostScript
-- [x] Personal VPS Deployment
+| Status | Task |
+|--------|------|
+| :heavy_check_mark: | Dokumentasi Github |
+| :heavy_check_mark: | Connect ke Service Teman |
+| :heavy_check_mark: | HTTPS |
+| :heavy_check_mark: | Personal Domain |
+| :heavy_check_mark: | Utilize Docker |
+| :heavy_check_mark: | Oauth + JWT |
+| :heavy_check_mark: | JavaScript + React + Hapi |
+| :heavy_check_mark: | PDF to IMG Converter Using ImageMagick and GhostScript |
+| :heavy_check_mark: | Personal VPS Deployment |
 
 ## Endpoints
 
