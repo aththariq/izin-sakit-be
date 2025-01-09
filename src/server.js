@@ -23,6 +23,13 @@ dotenv.config({
 
 const init = async () => {
   try {
+    // Add check for existing server
+    const existingServer = await checkPortInUse(process.env.PORT || 3000);
+    if (existingServer) {
+      console.log('Server is already running on port 3000');
+      process.exit(1);
+    }
+
     const server = Hapi.server({
       port: process.env.PORT || 3000,
       host: process.env.NODE_ENV === "production" ? "0.0.0.0" : "localhost",
@@ -118,11 +125,29 @@ const init = async () => {
   }
 };
 
+// Add utility function to check if port is in use
+const checkPortInUse = (port) => {
+  return new Promise((resolve) => {
+    const net = require('net');
+    const tester = net.createServer()
+      .once('error', err => {
+        if (err.code === 'EADDRINUSE') {
+          resolve(true);
+        }
+      })
+      .once('listening', () => {
+        tester.once('close', () => resolve(false))
+          .close();
+      })
+      .listen(port);
+  });
+};
+
 process.on("unhandledRejection", (err) => {
   console.error("Unhandled rejection:", err);
   process.exit(1);
 });
 
-init();
+
 init();
 
