@@ -457,7 +457,7 @@ const convertPdfToImageHandler = async (request, h) => {
 
     // Generate PDF if it doesn't exist
     if (!fs.existsSync(filePath)) {
-      await generatePDF(sickLeave, filePath);
+      await generatePDFDocument(sickLeave, filePath);
     }
 
     // Konfigurasi pdf2pic

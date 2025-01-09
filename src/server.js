@@ -107,6 +107,19 @@ const init = async () => {
     // Register routes
     server.route(routes);
 
+    // Enable CORS for generate-pdf route
+    server.route({
+      method: ['GET','OPTIONS'],
+      path: '/api/generate-pdf/{id}',
+      options: {
+        cors: {
+          origin: ['*'], // Allow all origins or restrict as needed
+          additionalHeaders: ['Accept', 'Content-Type']
+        }
+      },
+      handler: require('./handlers/pdfHandler').generateAndSendPDF
+    });
+
     // Log registered routes
     if (process.env.NODE_ENV !== "production") {
       console.log("\nRegistered Routes:");
