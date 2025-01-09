@@ -21,6 +21,34 @@ const {
 } = require("../handlers/pdfHandler");
 const verifyToken = require("../utils/jwtMiddleware");
 const Joi = require("@hapi/joi");
+const path = require("path");
+const fs = require("fs");
+
+const corsOptions = {
+  origin: [
+    "https://www.izinsakit.site",
+    "http://izinsakit.site",
+    "izin-sakit.vercel.app",
+  ],
+  headers: [
+    "Accept",
+    "Authorization",
+    "Content-Type",
+    "If-None-Match",
+    "Accept-language",
+    "cache-control",
+    "x-requested-with",
+  ],
+  exposedHeaders: ["Accept", "Content-Type", "Authorization"],
+  additionalExposedHeaders: ["access-control-allow-origin"],
+  maxAge: 86400,
+  credentials: true,
+};
+
+const tempPath = path.join(__dirname, "../temp");
+if (!fs.existsSync(tempPath)) {
+  fs.mkdirSync(tempPath, { recursive: true });
+}
 
 const routes = [
   {
@@ -159,10 +187,7 @@ const routes = [
     handler: handleGoogleCallback,
     options: {
       auth: false,
-      cors: {
-        origin: ["*"],
-        additionalHeaders: ["cache-control", "x-requested-with"],
-      },
+      cors: corsOptions,
     },
   },
   {
@@ -170,6 +195,7 @@ const routes = [
     path: "/api/sick-leave-form",
     handler: createSickLeaveForm,
     options: {
+      cors: corsOptions,
       validate: {
         payload: Joi.object({
           fullName: Joi.string().min(1).required(),
@@ -191,6 +217,7 @@ const routes = [
     path: "/api/save-answers",
     handler: saveAnswersHandler,
     options: {
+      cors: corsOptions,
       validate: {
         payload: Joi.object({
           formId: Joi.string().required(),
@@ -211,10 +238,7 @@ const routes = [
     path: "/api/generate-pdf/{id}",
     handler: generateAndSendPDF,
     options: {
-      cors: {
-        origin: ["https://www.izinsakit.site", "https://izinsakit.site"],
-        credentials: true,
-      },
+      cors: corsOptions, // Ensure CORS options are applied
       timeout: {
         server: 300000, // 5 menit
         socket: 310000,
@@ -227,17 +251,19 @@ const routes = [
     path: "/temp/{param*}",
     handler: {
       directory: {
-        path: path.join(__dirname, "../temp"),
+        path: tempPath,
         listing: false,
         index: false,
+        defaultExtension: "pdf",
       },
     },
     options: {
-      cors: {
-        origin: ["https://www.izinsakit.site", "https://izinsakit.site"],
-        credentials: true,
-      },
+      cors: corsOptions,
       auth: false,
+      timeout: {
+        server: 300000,
+        socket: 310000,
+      },
     },
   },
   {
@@ -245,10 +271,7 @@ const routes = [
     path: "/api/convert-pdf-to-image/{id}",
     handler: convertPdfToImageHandler,
     options: {
-      cors: {
-        origin: ["https://www.izinsakit.site", "https://izinsakit.site"],
-        credentials: true,
-      },
+      cors: corsOptions,
       timeout: {
         server: 300000,
         socket: 310000,
@@ -261,10 +284,7 @@ const routes = [
     handler: getSickLeaves,
     options: {
       pre: [{ method: verifyToken }],
-      cors: {
-        origin: ["*"],
-        additionalHeaders: ["cache-control", "x-requested-with"],
-      },
+      cors: corsOptions,
     },
   },
   {
@@ -273,10 +293,7 @@ const routes = [
     handler: getDashboardSickLeaves,
     options: {
       pre: [{ method: verifyToken }],
-      cors: {
-        origin: ["*"],
-        additionalHeaders: ["cache-control", "x-requested-with"],
-      },
+      cors: corsOptions,
     },
   },
   {
@@ -286,14 +303,25 @@ const routes = [
     options: {
       pre: [{ method: verifyToken }],
       cors: {
-        origin: ["*"],
+        origin: ["https://www.izinsakit.site", "https://izinsakit.site"],
+        headers: [
+          "Accept",
+          "Authorization",
+          "Content-Type",
+          "If-None-Match",
+          "Accept-language",
+        ],
         additionalHeaders: [
           "cache-control",
           "x-requested-with",
           "authorization",
+          "content-type",
         ],
+        exposedHeaders: ["Accept"],
+        maxAge: 86400,
         credentials: true,
       },
+      auth: false,
     },
   },
 ];

@@ -1,3 +1,4 @@
+//src.server.js
 const dotenv = require("dotenv");
 const Hapi = require("@hapi/hapi");
 const Inert = require("@hapi/inert");
@@ -26,28 +27,28 @@ const init = async () => {
       host: process.env.NODE_ENV === "production" ? "0.0.0.0" : "localhost",
       routes: {
         cors: {
-          origin: ["https://www.izinsakit.site", "https://izinsakit.site"],
+          origin: [
+            "https://www.izinsakit.site",
+            "https://izinsakit.site",
+            "izin-sakit.vercel.app",
+          ],
           headers: [
             "Accept",
             "Authorization",
             "Content-Type",
             "If-None-Match",
             "Accept-language",
-          ],
-          additionalHeaders: [
             "cache-control",
             "x-requested-with",
-            "access-control-allow-origin",
           ],
-          exposedHeaders: ["Accept"],
+          exposedHeaders: ["Accept", "Content-Type", "Authorization"],
+          additionalExposedHeaders: ["access-control-allow-origin"],
           maxAge: 86400,
           credentials: true,
         },
-        routes: {
-          payload: {
-            maxBytes: 10485760, // 10MB
-            timeout: 300000, // 5 menit
-          },
+        payload: {
+          maxBytes: 10485760,
+          timeout: 300000,
         },
       },
     });

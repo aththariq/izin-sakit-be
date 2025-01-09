@@ -12,8 +12,8 @@ const openai = new OpenAI({
   apiKey: process.env.OPENROUTER_API_KEY,
   defaultHeaders: {
     "HTTP-Referer": process.env.FRONTEND_URL || "http://localhost:5173",
-    "X-Title": "Izin Sakit App"
-  }
+    "X-Title": "Izin Sakit App",
+  },
 });
 
 // Konfigurasi email
@@ -128,8 +128,8 @@ async function analyzeAnswers(sickLeave) {
 // Add a standalone function to generate PDF
 async function generatePDF(sickLeave, filePath) {
   const doc = new PDFDocument({
-    size: 'A4',
-    margin: 50
+    size: "A4",
+    margin: 50,
   });
   const writeStream = fs.createWriteStream(filePath);
 
@@ -139,7 +139,7 @@ async function generatePDF(sickLeave, filePath) {
     // Fungsi helper untuk membuat header section
     const addSectionHeader = (text) => {
       doc
-        .font('Helvetica-Bold')
+        .font("Helvetica-Bold")
         .fontSize(12)
         .text(text, { underline: true })
         .moveDown(0.5);
@@ -147,179 +147,207 @@ async function generatePDF(sickLeave, filePath) {
 
     // Header surat dengan kop yang formal
     doc
-      .font('Helvetica-Bold')
+      .font("Helvetica-Bold")
       .fontSize(16)
-      .text('SURAT KETERANGAN SAKIT', { align: 'center' })
+      .text("SURAT KETERANGAN SAKIT", { align: "center" })
       .fontSize(12)
-      .text(`Nomor: SKS/${new Date().getFullYear()}/${sickLeave._id.toString().substr(-6)}`, {
-        align: 'center'
-      })
+      .text(
+        `Nomor: SKS/${new Date().getFullYear()}/${sickLeave._id
+          .toString()
+          .substr(-6)}`,
+        {
+          align: "center",
+        }
+      )
       .moveDown(2);
 
     // Data Pasien
-    addSectionHeader('DATA PASIEN');
-    doc.font('Helvetica')
-       .fontSize(11)
-       .text([
-         `Nama Lengkap      : ${sickLeave.username}`,
-         `Jenis Kelamin     : ${sickLeave.gender === 'male' ? 'Laki-laki' : 'Perempuan'}`,
-         `Usia             : ${sickLeave.age} tahun`,
-         `Institusi        : ${sickLeave.institution}`
-       ].join('\n'), {
-         paragraphGap: 5,
-         lineGap: 5
-       })
-       .moveDown(1.5);
+    addSectionHeader("DATA PASIEN");
+    doc
+      .font("Helvetica")
+      .fontSize(11)
+      .text(
+        [
+          `Nama Lengkap      : ${sickLeave.username}`,
+          `Jenis Kelamin     : ${
+            sickLeave.gender === "male" ? "Laki-laki" : "Perempuan"
+          }`,
+          `Usia             : ${sickLeave.age} tahun`,
+          `Institusi        : ${sickLeave.institution}`,
+        ].join("\n"),
+        {
+          paragraphGap: 5,
+          lineGap: 5,
+        }
+      )
+      .moveDown(1.5);
 
     // Hasil Pemeriksaan
-    addSectionHeader('HASIL PEMERIKSAAN');
-    doc.font('Helvetica')
-       .text('Anamnesis:', { continued: true })
-       .text(` ${sickLeave.reason} ${sickLeave.otherReason ? `(${sickLeave.otherReason})` : ''}`)
-       .moveDown(0.5);
+    addSectionHeader("HASIL PEMERIKSAAN");
+    doc
+      .font("Helvetica")
+      .text("Anamnesis:", { continued: true })
+      .text(
+        ` ${sickLeave.reason} ${
+          sickLeave.otherReason ? `(${sickLeave.otherReason})` : ""
+        }`
+      )
+      .moveDown(0.5);
 
     // Format analisis dengan bullet points
-    const formattedAnalysis = sickLeave.analisis.split('. ')
-      .filter(point => point.trim().length > 0)
-      .map(point => `• ${point.trim()}${point.endsWith('.') ? '' : '.'}`);
+    const formattedAnalysis = sickLeave.analisis
+      .split(". ")
+      .filter((point) => point.trim().length > 0)
+      .map((point) => `• ${point.trim()}${point.endsWith(".") ? "" : "."}`);
 
-    doc.text('Pemeriksaan Klinis:', { lineGap: 5 })
-       .moveDown(0.5);
-    
-    formattedAnalysis.forEach(point => {
+    doc.text("Pemeriksaan Klinis:", { lineGap: 5 }).moveDown(0.5);
+
+    formattedAnalysis.forEach((point) => {
       doc.text(point, {
         indent: 20,
-        align: 'justify',
-        lineGap: 3
+        align: "justify",
+        lineGap: 3,
       });
     });
-    
-    doc.moveDown(1)
-       .font('Helvetica-Bold')
-       .text('Diagnosis:', { continued: true })
-       .font('Helvetica')
-       .text(` ${sickLeave.reason}`)
-       .moveDown(1.5);
+
+    doc
+      .moveDown(1)
+      .font("Helvetica-Bold")
+      .text("Diagnosis:", { continued: true })
+      .font("Helvetica")
+      .text(` ${sickLeave.reason}`)
+      .moveDown(1.5);
 
     // Rekomendasi
-    addSectionHeader('REKOMENDASI MEDIS');
-    doc.font('Helvetica')
-       .text(sickLeave.rekomendasi, {
-         lineGap: 3,
-         align: 'justify'
-       })
-       .moveDown(1);
+    addSectionHeader("REKOMENDASI MEDIS");
+    doc
+      .font("Helvetica")
+      .text(sickLeave.rekomendasi, {
+        lineGap: 3,
+        align: "justify",
+      })
+      .moveDown(1);
 
     // Catatan Khusus jika ada
-    if (sickLeave.catatan && sickLeave.catatan.trim() !== 'Tidak ada catatan tambahan') {
-      addSectionHeader('CATATAN KHUSUS');
-      doc.font('Helvetica')
-         .text(sickLeave.catatan, {
-           lineGap: 3,
-           align: 'justify'
-         })
-         .moveDown(1.5);
+    if (
+      sickLeave.catatan &&
+      sickLeave.catatan.trim() !== "Tidak ada catatan tambahan"
+    ) {
+      addSectionHeader("CATATAN KHUSUS");
+      doc
+        .font("Helvetica")
+        .text(sickLeave.catatan, {
+          lineGap: 3,
+          align: "justify",
+        })
+        .moveDown(1.5);
     }
 
     // Tanda tangan dan penutup
-    const today = new Date().toLocaleDateString('id-ID', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+    const today = new Date().toLocaleDateString("id-ID", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
 
-    doc.moveDown(1)
-       .font('Helvetica')
-       .text(`Diberikan di Jakarta, ${today}`, { align: 'right' })
-       .moveDown(1)
-       .text('Dokter Pemeriksa,', { align: 'right' })
-       .moveDown(3)
-       .font('Helvetica-Bold')
-       .text('dr. AI System, Sp.KA', { align: 'right' })
-       .font('Helvetica')
-       .fontSize(10)
-       .text('Nomor SIP: AI/2024/001', { align: 'right' })
-       .text('Dokter Spesialis Kecerdasan Artifisial', { align: 'right' });
+    doc
+      .moveDown(1)
+      .font("Helvetica")
+      .text(`Diberikan di Jakarta, ${today}`, { align: "right" })
+      .moveDown(1)
+      .text("Dokter Pemeriksa,", { align: "right" })
+      .moveDown(3)
+      .font("Helvetica-Bold")
+      .text("dr. AI System, Sp.KA", { align: "right" })
+      .font("Helvetica")
+      .fontSize(10)
+      .text("Nomor SIP: AI/2024/001", { align: "right" })
+      .text("Dokter Spesialis Kecerdasan Artifisial", { align: "right" });
 
     // Footer
-    doc.fontSize(8)
-       .text('Dokumen ini dihasilkan secara digital dan sah tanpa tanda tangan basah', {
-         align: 'center',
-         color: 'grey'
-       });
+    doc
+      .fontSize(8)
+      .text(
+        "Dokumen ini dihasilkan secara digital dan sah tanpa tanda tangan basah",
+        {
+          align: "center",
+          color: "grey",
+        }
+      );
 
     doc.end();
-    writeStream.on('finish', () => resolve(filePath));
-    writeStream.on('error', reject);
+    writeStream.on("finish", () => resolve(filePath));
+    writeStream.on("error", reject);
   });
 }
 
 // Modify generateAndSendPDF to include contact information and additional details in the email prompt
 const generateAndSendPDF = async (request, h) => {
-  const { id } = request.params;
-  const { email, format } = request.query; // Email opsional untuk pengiriman
-
   try {
-    const sickLeave = await SickLeave.findById(id);
-    if (!sickLeave) {
-      return h.response({ message: "Sick leave not found" }).code(404);
-    }
+    const { id } = request.params;
+    const { email, format } = request.query; // Email opsional untuk pengiriman
 
-    // Path untuk menyimpan PDF
-    const filePath = path.join(
-      __dirname,
-      `../../temp/surat_izin_sakit_${id}.pdf`
-    );
+    try {
+      const sickLeave = await SickLeave.findById(id);
+      if (!sickLeave) {
+        return h.response({ message: "Sick leave not found" }).code(404);
+      }
 
-    let analysis; // Define analysis variable
+      // Path untuk menyimpan PDF
+      const filePath = path.join(
+        __dirname,
+        `../../temp/surat_izin_sakit_${id}.pdf`
+      );
 
-    // Check if PDF already exists
-    if (!fs.existsSync(filePath)) {
-      // Get or generate analysis
-      analysis = await analyzeAnswers(sickLeave);
+      let analysis; // Define analysis variable
 
-      // Generate PDF
-      await generatePDF(sickLeave, filePath);
+      // Check if PDF already exists
+      if (!fs.existsSync(filePath)) {
+        // Get or generate analysis
+        analysis = await analyzeAnswers(sickLeave);
 
-      // Generate image once PDF is created
-      // Assuming convertPdfToImageHandler handles image generation
-    } else {
-      analysis = sickLeave.analisis; // Retrieve existing analysis
-    }
+        // Generate PDF
+        await generatePDF(sickLeave, filePath);
 
-    // If preview requested, convert first page to PNG
-    if (format === "preview") {
-      const options = {
-        density: 100,
-        saveFilename: `preview_${id}`,
-        savePath: path.join(__dirname, "../../temp"),
-        format: "png",
-        width: 595, // A4 width in pixels at 72 DPI
-        height: 842, // A4 height in pixels at 72 DPI
-      };
+        // Generate image once PDF is created
+        // Assuming convertPdfToImageHandler handles image generation
+      } else {
+        analysis = sickLeave.analisis; // Retrieve existing analysis
+      }
 
-      const convert = pdf2pic.fromPath(filePath, options);
-      const pageImage = await convert(1); // Convert first page
+      // If preview requested, convert first page to PNG
+      if (format === "preview") {
+        const options = {
+          density: 100,
+          saveFilename: `preview_${id}`,
+          savePath: path.join(__dirname, "../../temp"),
+          format: "png",
+          width: 595, // A4 width in pixels at 72 DPI
+          height: 842, // A4 height in pixels at 72 DPI
+        };
 
-      return h.file(pageImage.path, {
-        mode: "inline",
-        filename: "preview.png",
-        headers: {
-          "Content-Type": "image/png",
-        },
-      });
-    }
+        const convert = pdf2pic.fromPath(filePath, options);
+        const pageImage = await convert(1); // Convert first page
 
-    // Generate personalized email subject and body using Open Router AI
-    const prompt = `
+        return h.file(pageImage.path, {
+          mode: "inline",
+          filename: "preview.png",
+          headers: {
+            "Content-Type": "image/png",
+          },
+        });
+      }
+
+      // Generate personalized email subject and body using Open Router AI
+      const prompt = `
 Buatkan surat permohonan izin sakit yang formal dengan data berikut:
 - Nama: ${sickLeave.username}
 - Jabatan/Kelas: ${sickLeave.position}
 - Institusi: ${sickLeave.institution}
 - Diagnosis: ${sickLeave.reason} ${
-      sickLeave.otherReason ? `(${sickLeave.otherReason})` : ""
-    }
+        sickLeave.otherReason ? `(${sickLeave.otherReason})` : ""
+      }
 - Tanggal Izin: ${new Date(sickLeave.date).toLocaleDateString("id-ID")}
 - Hasil Pemeriksaan: ${sickLeave.analisis}
 - Rekomendasi Medis: ${sickLeave.rekomendasi}
@@ -368,89 +396,91 @@ Instruksi tambahan:
 Output harus berupa JSON yang valid tanpa teks tambahan di luar struktur JSON.
 `;
 
-    const completion = await openai.chat.completions.create({
-      model: "google/gemini-pro",
-      messages: [
-        {
-          role: "system",
-          content:
-            "Anda adalah penulis surat profesional yang akan membuat surat izin sakit formal dalam format JSON. Fokus pada pembuatan narasi yang mengalir dan formal.",
+      const completion = await openai.chat.completions.create({
+        model: "google/gemini-pro",
+        messages: [
+          {
+            role: "system",
+            content:
+              "Anda adalah penulis surat profesional yang akan membuat surat izin sakit formal dalam format JSON. Fokus pada pembuatan narasi yang mengalir dan formal.",
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        temperature: 0.7,
+      });
+
+      const aiResponse = completion.choices[0].message.content.trim();
+      console.log("AI Email Response before sanitization:", aiResponse); // Added logging
+
+      // Sanitize the AI response by removing unwanted control characters
+      const sanitizedResponse = aiResponse.replace(/[\u0000-\u001F\u007F]/g, "");
+      console.log("AI Email Response after sanitization:", sanitizedResponse); // Added logging
+
+      // Extract JSON from response
+      const jsonMatch = sanitizedResponse.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error("Invalid JSON format in AI email response");
+      }
+
+      const jsonStr = jsonMatch[0];
+      let emailData;
+      try {
+        emailData = JSON.parse(jsonStr);
+      } catch (e) {
+        throw new Error("Failed to parse AI email JSON response");
+      }
+
+      // Validate required fields
+      if (!emailData.subject || !emailData.body) {
+        throw new Error("Missing 'subject' or 'body' in AI email response");
+      }
+
+      // Kirim email jika ada alamat email
+      if (email) {
+        await sendEmailWithAttachment(
+          email,
+          emailData.subject, // Use dynamic subject
+          emailData.body, // Use dynamic body
+          {
+            filename: "surat_keterangan_sakit.pdf",
+            path: filePath,
+          }
+        );
+
+        return h
+          .response({
+            message: "PDF generated and sent to email successfully",
+            analysis, // Ensure analysis is defined
+          })
+          .code(200);
+      }
+
+      // Return PDF file dengan header yang tepat
+      return h.file(filePath, {
+        mode: "inline",
+        filename: "surat_keterangan_sakit.pdf",
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": "inline; filename=surat_keterangan_sakit.pdf",
         },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      temperature: 0.7,
-    });
-
-    const aiResponse = completion.choices[0].message.content.trim();
-    console.log("AI Email Response before sanitization:", aiResponse); // Added logging
-
-    // Sanitize the AI response by removing unwanted control characters
-    const sanitizedResponse = aiResponse.replace(/[\u0000-\u001F\u007F]/g, "");
-    console.log("AI Email Response after sanitization:", sanitizedResponse); // Added logging
-
-    // Extract JSON from response
-    const jsonMatch = sanitizedResponse.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("Invalid JSON format in AI email response");
-    }
-
-    const jsonStr = jsonMatch[0];
-    let emailData;
-    try {
-      emailData = JSON.parse(jsonStr);
-    } catch (e) {
-      throw new Error("Failed to parse AI email JSON response");
-    }
-
-    // Validate required fields
-    if (!emailData.subject || !emailData.body) {
-      throw new Error("Missing 'subject' or 'body' in AI email response");
-    }
-
-    // Kirim email jika ada alamat email
-    if (email) {
-      await sendEmailWithAttachment(
-        email,
-        emailData.subject, // Use dynamic subject
-        emailData.body, // Use dynamic body
-        {
-          filename: "surat_keterangan_sakit.pdf",
-          path: filePath,
-        }
-      );
-
+      });
+    } catch (error) {
+      console.error("Error:", error);
       return h
         .response({
-          message: "PDF generated and sent to email successfully",
-          analysis, // Ensure analysis is defined
+          message: "Error processing request",
+          error: error.message,
         })
-        .code(200);
+        .code(500);
     }
-
-    // Return PDF file dengan header yang tepat
-    return h.file(filePath, {
-      mode: "inline",
-      filename: "surat_keterangan_sakit.pdf",
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": "inline; filename=surat_keterangan_sakit.pdf",
-      },
-    });
   } catch (error) {
-    console.error("Error:", error);
-    return h
-      .response({
-        message: "Error processing request",
-        error: error.message,
-      })
-      .code(500);
+    console.error("Error generating PDF:", error); // Detailed error logging
+    return h.response({ message: "Failed to generate PDF." }).code(500);
   }
 };
-
-const { pdfToPng } = require("pdf-to-png-converter");
 
 const convertPdfToImageHandler = async (request, h) => {
   const { id } = request.params;
@@ -472,24 +502,37 @@ const convertPdfToImageHandler = async (request, h) => {
       await generatePDF(sickLeave, filePath);
     }
 
-    // Periksa apakah file PDF ada
-    if (!fs.existsSync(filePath)) {
-      return h.response({ message: "PDF file not found" }).code(404);
-    }
+    // Konfigurasi pdf2pic
+    const options = {
+      density: 300, // Resolusi lebih tinggi untuk kualitas lebih baik
+      saveFilename: `preview_${id}`,
+      savePath: path.join(__dirname, "../../temp"),
+      format: "png",
+      width: 2480, // A4 width pada 300 DPI
+      height: 3508, // A4 height pada 300 DPI
+    };
 
-    // Konversi halaman pertama PDF ke gambar PNG
-    const pngPages = await pdfToPng(filePath, {
-      outputFolder: "", // Tidak menyimpan ke folder, hanya menghasilkan buffer
-      outputFileMaskFunc: (pageNum) => `page_${pageNum}.png`,
-      pagesToProcess: [1], // Hanya halaman pertama
-      viewportScale: 2.0, // Skala viewport untuk resolusi tinggi
+    // Konversi PDF ke PNG
+    const convert = pdf2pic.fromPath(filePath, options);
+    const pageImage = await convert(1); // Convert halaman pertama saja
+
+    // Hapus require pdf-to-png-converter
+    return h.file(pageImage.path, {
+      mode: "inline",
+      filename: "preview.png",
+      headers: {
+        "Content-Type": "image/png",
+        "Cache-Control": "public, max-age=3600",
+      },
     });
-
-    // Kirim halaman pertama sebagai respons (PNG)
-    return h.response(pngPages[0].content).type("image/png");
   } catch (error) {
-    console.error("Error converting PDF to image:", error.message);
-    return h.response({ message: "Error converting PDF to image" }).code(500);
+    console.error("Error converting PDF to image:", error);
+    return h
+      .response({
+        message: "Error converting PDF to image",
+        error: error.message,
+      })
+      .code(500);
   }
 };
 
