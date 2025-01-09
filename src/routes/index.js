@@ -29,7 +29,7 @@ const corsOptions = {
     "https://www.izinsakit.site",
     "http://izinsakit.site",
     "https://izin-sakit.vercel.app",
-    "http://localhost:5173" // Add localhost for development
+    "http://localhost:5173", // Add localhost for development
   ],
   headers: [
     "Accept",
@@ -49,8 +49,8 @@ const corsOptions = {
 const standardRouteOptions = {
   cors: corsOptions,
   timeout: {
-    server: 300000,
-    socket: 310000,
+    server: 600000,
+    socket: 620000,
   },
 };
 
