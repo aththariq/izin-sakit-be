@@ -87,7 +87,17 @@ const createSickLeaveForm = async (request, h) => {
       !contactEmail ||
       !phoneNumber
     ) {
-      console.log("Missing or invalid required fields");
+      console.log("Missing or invalid required fields", {
+        fullName,
+        position,
+        institution,
+        startDate,
+        sickReason,
+        gender,
+        age,
+        contactEmail,
+        phoneNumber,
+      });
       return h
         .response({
           message: "Missing or invalid required fields",

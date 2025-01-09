@@ -24,7 +24,7 @@ const Joi = require("@hapi/joi");
 const path = require("path");
 const fs = require("fs");
 const { generatePDF } = require('../handlers/pdfGenerationHandler');
-const { sendPDFEmail } = require('../handlers/emailHandler');
+const { sendPDFEmail, checkEmailStatus } = require('../handlers/emailHandler');
 
 const corsOptions = {
   origin: [
@@ -212,21 +212,69 @@ const routes = [
     handler: createSickLeaveForm,
     options: {
       ...standardRouteOptions,
-      validate: {
-        payload: Joi.object({
-          fullName: Joi.string().min(1).required(),
-          position: Joi.string().min(1).required(),
-          institution: Joi.string().min(1).required(),
-          startDate: Joi.string().required(), // Changed from date to string
-          sickReason: Joi.string().min(1).required(),
-          otherReason: Joi.string().allow("", null),
-          gender: Joi.string().valid("male", "female").required(),
-          age: Joi.number().min(1).required(),
-          contactEmail: Joi.string().email().required(),
-          phoneNumber: Joi.string().min(1).required(),
-        }),
+      payload: {
+        multipart: true,
+        parse: true,
+        allow: ['application/json'],
+        maxBytes: 10485760, // 10MB
       },
-    },
+      validate: {
+        failAction: (request, h, err) => {
+          console.error('Validation error:', err.details); // Log detailed validation errors
+          throw err;
+        },
+        payload: Joi.object({
+          fullName: Joi.string().trim().min(1).required()
+            .messages({
+              'string.empty': 'Nama lengkap tidak boleh kosong',
+              'string.min': 'Nama lengkap minimal 1 karakter',
+              'any.required': 'Nama lengkap wajib diisi'
+            }),
+          position: Joi.string().trim().min(1).required()
+            .messages({
+              'string.empty': 'Jabatan/Posisi tidak boleh kosong',
+              'any.required': 'Jabatan/Posisi wajib diisi'
+            }),
+          institution: Joi.string().trim().min(1).required()
+            .messages({
+              'string.empty': 'Institusi tidak boleh kosong',
+              'any.required': 'Institusi wajib diisi'
+            }),
+          startDate: Joi.string().isoDate().required() // Ensure ISO date format
+            .messages({
+              'any.required': 'Tanggal mulai wajib diisi',
+              'string.isoDate': 'Tanggal mulai harus dalam format ISO'
+            }),
+          sickReason: Joi.string().trim().min(1).required()
+            .messages({
+              'string.empty': 'Alasan sakit tidak boleh kosong',
+              'any.required': 'Alasan sakit wajib diisi'
+            }),
+          otherReason: Joi.string().allow('', null),
+          gender: Joi.string().valid('male', 'female').required()
+            .messages({
+              'any.only': 'Jenis kelamin harus male atau female',
+              'any.required': 'Jenis kelamin wajib diisi'
+            }),
+          age: Joi.number().min(1).required()
+            .messages({
+              'number.base': 'Usia harus berupa angka',
+              'number.min': 'Usia minimal 1 tahun',
+              'any.required': 'Usia wajib diisi'
+            }),
+          contactEmail: Joi.string().email().required()
+            .messages({
+              'string.email': 'Format email tidak valid',
+              'any.required': 'Email wajib diisi'
+            }),
+          phoneNumber: Joi.string().min(1).required()
+            .messages({
+              'string.empty': 'Nomor telepon tidak boleh kosong',
+              'any.required': 'Nomor telepon wajib diisi'
+            })
+        }).options({ stripUnknown: true })
+      }
+    }
   },
   {
     method: "POST",
@@ -366,6 +414,20 @@ const routes = [
         }),
         payload: Joi.object({
           email: Joi.string().email().required()
+        })
+      }
+    }
+  },
+  {
+    method: 'GET',
+    path: '/api/email-status/{jobId}',
+    handler: checkEmailStatus,
+    options: {
+      description: 'Check email sending status',
+      tags: ['api', 'email'],
+      validate: {
+        params: Joi.object({
+          jobId: Joi.string().required()
         })
       }
     }
