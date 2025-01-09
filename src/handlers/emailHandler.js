@@ -1,7 +1,7 @@
-const queue = require('../utils/queue');
-const logger = require('../utils/logger');
-const { cacheManager, getCacheKey } = require('../utils/cache');
-const { sendEmailWithAttachment } = require('./sendEmail');
+const queue = require("../utils/queue");
+const logger = require("../utils/logger");
+const { cacheManager, getCacheKey } = require("../utils/cache");
+const { sendEmailWithAttachment } = require("./sendEmail");
 const OpenAI = require("openai"); // Import OpenAI
 
 // Initialize OpenAI instance
@@ -22,52 +22,61 @@ const sendPDFEmail = async (request, h) => {
     // Verify PDF exists
     const cacheKey = getCacheKey(id);
     const pdfPath = cacheManager.get(cacheKey);
-    
+
     if (!pdfPath) {
       logger.warn(`PDF not found in cache for ID: ${id}`);
-      return h.response({
-        status: 'error',
-        message: 'PDF belum digenerate, silakan generate terlebih dahulu'
-      }).code(400);
+      return h
+        .response({
+          status: "error",
+          message: "PDF belum digenerate, silakan generate terlebih dahulu",
+        })
+        .code(400);
     }
 
     // Queue email sending job
-    const job = await queue.add('sendEmail', {
-      id,
-      email,
-      subject: 'Surat Keterangan Sakit', // Add subject dynamically if needed
-      text: 'Silakan lihat lampiran untuk surat keterangan sakit Anda.',
-      attachment: {
-        filename: "surat_keterangan_sakit.pdf",
-        path: pdfPath
+    const job = await queue.add(
+      "sendEmail",
+      {
+        id,
+        email,
+        subject: "Surat Keterangan Sakit", // Add subject dynamically if needed
+        text: "Silakan lihat lampiran untuk surat keterangan sakit Anda.",
+        attachment: {
+          filename: "surat_keterangan_sakit.pdf",
+          path: pdfPath,
+        },
+      },
+      {
+        attempts: 3,
+        backoff: { type: "exponential", delay: 2000 },
+        removeOnComplete: true,
+        timeout: 300000, // 5 minutes
       }
-    }, {
-      attempts: 3,
-      backoff: { type: 'exponential', delay: 2000 },
-      removeOnComplete: true,
-      timeout: 300000 // 5 minutes
-    });
+    );
 
     logger.info(`Email job queued for ${id} to ${email}, job ID: ${job.id}`);
 
-    return h.response({
-      status: 'queued',
-      jobId: job.id,
-      message: 'Email sedang dalam proses pengiriman'
-    }).code(202);
-
+    return h
+      .response({
+        status: "queued",
+        jobId: job.id,
+        message: "Email sedang dalam proses pengiriman",
+      })
+      .code(202);
   } catch (error) {
-    logger.error('Email queuing failed:', {
+    logger.error("Email queuing failed:", {
       error: error.message,
       id,
-      email
+      email,
     });
 
-    return h.response({
-      status: 'error',
-      message: 'Gagal mengirim email',
-      error: error.message
-    }).code(500);
+    return h
+      .response({
+        status: "error",
+        message: "Gagal mengirim email",
+        error: error.message,
+      })
+      .code(500);
   }
 };
 
@@ -77,17 +86,17 @@ const sendPDFEmailUtility = async (id, email, pdfPath) => {
     // Verify PDF exists in cache
     const cacheKey = getCacheKey(id);
     const existingPdfPath = cacheManager.get(cacheKey);
-    
+
     if (!existingPdfPath) {
       logger.warn(`PDF not found in cache for ID: ${id}`);
-      throw new Error('PDF belum digenerate, silakan generate terlebih dahulu');
+      throw new Error("PDF belum digenerate, silakan generate terlebih dahulu");
     }
 
     // Retrieve sick leave data
     const SickLeave = require("../models/SickLeave"); // Import SickLeave model
     const sickLeave = await SickLeave.findById(id);
     if (!sickLeave) {
-      throw new Error('Data izin sakit tidak ditemukan');
+      throw new Error("Data izin sakit tidak ditemukan");
     }
 
     // Generate email subject and body using OpenAI
@@ -96,7 +105,9 @@ Buatkan surat permohonan izin sakit yang formal dengan data berikut:
 - Nama: ${sickLeave.username}
 - Jabatan/Kelas: ${sickLeave.position}
 - Institusi: ${sickLeave.institution}
-- Diagnosis: ${sickLeave.reason} ${sickLeave.otherReason ? '(${sickLeave.otherReason})' : ""}
+- Diagnosis: ${sickLeave.reason} ${
+      sickLeave.otherReason ? "(${sickLeave.otherReason})" : ""
+    }
 - Tanggal Izin: ${new Date(sickLeave.date).toLocaleDateString("id-ID")}
 - Hasil Pemeriksaan: ${sickLeave.analisis}
 - Rekomendasi Medis: ${sickLeave.rekomendasi}
@@ -163,17 +174,19 @@ Output harus berupa JSON yang valid tanpa teks tambahan di luar struktur JSON.
 
     // Add error checking for completion response
     if (!completion || !completion.choices || completion.choices.length === 0) {
-      logger.error('Invalid AI response structure:', completion);
-      throw new Error('Failed to get valid response from AI');
+      logger.error("Invalid AI response structure:", completion);
+      throw new Error("Failed to get valid response from AI");
     }
 
     const aiResponse = completion.choices[0]?.message?.content;
     if (!aiResponse) {
-      logger.error('No content in AI response');
-      throw new Error('Empty response from AI');
+      logger.error("No content in AI response");
+      throw new Error("Empty response from AI");
     }
 
-    const sanitizedResponse = aiResponse.trim().replace(/[\u0000-\u001F\u007F]/g, "");
+    const sanitizedResponse = aiResponse
+      .trim()
+      .replace(/[\u0000-\u001F\u007F]/g, "");
     logger.debug("AI Email Response after sanitization:", sanitizedResponse);
 
     // Improved JSON extraction
@@ -191,34 +204,31 @@ Output harus berupa JSON yang valid tanpa teks tambahan di luar struktur JSON.
     }
 
     // Validate the parsed data
-    if (!jsonData || typeof jsonData !== 'object') {
-      throw new Error('Invalid JSON structure in AI response');
+    if (!jsonData || typeof jsonData !== "object") {
+      throw new Error("Invalid JSON structure in AI response");
     }
 
     // Use fallback values if needed
     const emailData = {
-      subject: jsonData.subject || `Surat Keterangan Sakit - ${sickLeave.username}`,
-      body: jsonData.body || 'Terlampir surat keterangan sakit.'
+      subject:
+        jsonData.subject || `Surat Keterangan Sakit - ${sickLeave.username}`,
+      body: jsonData.body || "Terlampir surat keterangan sakit.",
     };
 
     // Send email with generated content
-    await sendEmailWithAttachment(
-      email,
-      emailData.subject,
-      emailData.body,
-      {
-        filename: "surat_keterangan_sakit.pdf",
-        path: existingPdfPath,
-      }
-    );
+    // Send email with generated content
+    await sendEmailWithAttachment(email, emailData.subject, emailData.body, {
+      filename: "surat_keterangan_sakit.pdf",
+      content: fs.createReadStream(existingPdfPath),
+      contentType: "application/pdf",
+    });
 
     logger.info(`Email sent successfully to ${email} for ID: ${id}`);
-
   } catch (error) {
-    logger.error('sendPDFEmailUtility failed:', {
+    logger.error("sendPDFEmailUtility failed:", {
       error: error.message,
       id,
-      email
+      email,
     });
     throw error;
   }
@@ -231,10 +241,12 @@ const checkEmailStatus = async (request, h) => {
   try {
     const job = await queue.getJob(jobId);
     if (!job) {
-      return h.response({
-        status: 'not_found',
-        message: 'Job tidak ditemukan'
-      }).code(404);
+      return h
+        .response({
+          status: "not_found",
+          message: "Job tidak ditemukan",
+        })
+        .code(404);
     }
 
     const state = await job.getState();
@@ -243,32 +255,33 @@ const checkEmailStatus = async (request, h) => {
     return h.response({
       status: state,
       progress,
-      message: getStatusMessage(state)
+      message: getStatusMessage(state),
     });
-
   } catch (error) {
-    logger.error('Error checking email status:', error);
-    return h.response({
-      status: 'error',
-      message: 'Gagal memeriksa status email'
-    }).code(500);
+    logger.error("Error checking email status:", error);
+    return h
+      .response({
+        status: "error",
+        message: "Gagal memeriksa status email",
+      })
+      .code(500);
   }
 };
 
 function getStatusMessage(state) {
   const messages = {
-    'completed': 'Email berhasil dikirim',
-    'failed': 'Pengiriman email gagal',
-    'active': 'Email sedang dikirim',
-    'waiting': 'Email dalam antrian',
-    'delayed': 'Pengiriman email ditunda',
-    'paused': 'Pengiriman email dijeda'
+    completed: "Email berhasil dikirim",
+    failed: "Pengiriman email gagal",
+    active: "Email sedang dikirim",
+    waiting: "Email dalam antrian",
+    delayed: "Pengiriman email ditunda",
+    paused: "Pengiriman email dijeda",
   };
-  return messages[state] || 'Status tidak diketahui';
+  return messages[state] || "Status tidak diketahui";
 }
 
 module.exports = {
   sendPDFEmail,
   checkEmailStatus,
-  sendPDFEmailUtility // Export the new utility function
+  sendPDFEmailUtility, // Export the new utility function
 };

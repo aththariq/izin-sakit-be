@@ -27,26 +27,18 @@ const { generatePDF } = require("../handlers/pdfGenerationHandler");
 const { sendPDFEmail, checkEmailStatus } = require("../handlers/emailHandler");
 
 const corsOptions = {
-  origin: [
-    "https://www.izinsakit.site",
-    "http://izinsakit.site",
-    "https://izin-sakit.vercel.app",
-    "http://localhost:5173",
-  ],
+  origin: ["https://www.izinsakit.site", "https://izinsakit.site"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   credentials: true,
-  headers: [
-    "Accept",
-    "Authorization",
-    "Content-Type",
-    "If-None-Match",
-    "Accept-language",
-    "cache-control",
-    "x-requested-with",
-    "Origin",
-  ],
-  exposedHeaders: ["Accept", "Content-Type", "Authorization"],
+  headers: ["Accept", "Content-Type", "Authorization"],
+  exposedHeaders: ["Accept"],
   maxAge: 86400,
 };
+
+await server.register({
+  plugin: require("@hapi/cors"),
+  options: corsOptions,
+});
 
 const standardRouteOptions = {
   cors: corsOptions,
@@ -323,14 +315,12 @@ const routes = [
     path: "/api/generate-pdf/{id}",
     handler: generateAndSendPDF,
     options: {
-      cors: {
-        ...corsOptions,
-        origin: ["https://www.izinsakit.site"],
-        credentials: true,
-      },
-      timeout: {
-        server: 600000,
-        socket: 620000,
+      cors: corsOptions,
+      payload: {
+        output: "stream",
+        parse: true,
+        allow: ["application/json"],
+        maxBytes: 10485760,
       },
     },
   },
