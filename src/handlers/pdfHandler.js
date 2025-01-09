@@ -40,122 +40,143 @@ const transporter = nodemailer.createTransport({
 
 // Fungsi untuk menganalisis jawaban dengan AI dan menyimpan analisis
 async function analyzeAnswers(sickLeave) {
-  // Check if analysis already exists
-  if (sickLeave.analisis && sickLeave.rekomendasi) {
-    return {
-      analisis: sickLeave.analisis,
-      rekomendasi: sickLeave.rekomendasi,
-      catatan: sickLeave.catatan || "Tidak ada catatan tambahan",
-    };
-  }
+  try {
+    // Check if analysis already exists
+    if (sickLeave.analisis && sickLeave.rekomendasi) {
+      return {
+        analisis: sickLeave.analisis,
+        rekomendasi: sickLeave.rekomendasi,
+        catatan: sickLeave.catatan || "Tidak ada catatan tambahan",
+      };
+    }
 
-  const prompt = `
-Lakukan analisis medis komprehensif untuk pasien berikut dan berikan respons dalam format JSON:
-Pasien: 
-- Gejala Utama: ${sickLeave.reason} ${sickLeave.otherReason ? `(${sickLeave.otherReason})` : ""}
-- Usia: ${sickLeave.age}
-- Jenis Kelamin: ${sickLeave.gender}
-- Jawaban Tambahan: ${sickLeave.answers.map((a) => `${a.answer}`).join(" | ")}
+    // Format answers for analysis
+    const answersFormatted = sickLeave.answers?.map(a => 
+      `${a.questionId}: ${a.answer}`
+    ).join("\n") || "Tidak ada jawaban tambahan";
 
-Berikan analisis dengan kriteria berikut (semua poin harus dibahas):
-1. Analisis Gejala:
-   - Gejala utama dan manifestasi klinisnya
-   - Gejala pendukung dan kaitannya dengan kondisi utama
-2. Evaluasi Keparahan:
-   - Tingkat keparahan berdasarkan usia dan kondisi
-   - Dampak potensial pada aktivitas sehari-hari
-3. Faktor Risiko:
-   - Faktor risiko yang relevan berdasarkan data yang tersedia
-   - Potensi komplikasi yang perlu diwaspadai
-4. Rekomendasi Medis:
-   - Rekomendasi spesifik dengan durasi yang jelas
-   - Tindakan yang harus diambil oleh pasien
-5. Catatan Tambahan:
-   - Informasi preventif atau tindakan pencegahan yang perlu diperhatikan
+    logger.info('Processing analysis for:', {
+      reason: sickLeave.reason,
+      age: sickLeave.age,
+      gender: sickLeave.gender,
+      hasAnswers: !!sickLeave.answers?.length
+    });
 
-Format respons JSON:
+    const prompt = `
+Berikan analisis medis profesional untuk pasien dengan data berikut:
+
+INFORMASI PASIEN
+Keluhan Utama: ${sickLeave.reason}
+${sickLeave.otherReason ? `Keluhan Tambahan: ${sickLeave.otherReason}` : ''}
+Usia: ${sickLeave.age} tahun
+Jenis Kelamin: ${sickLeave.gender === 'male' ? 'Laki-laki' : 'Perempuan'}
+
+HASIL WAWANCARA MEDIS
+${answersFormatted}
+
+Berikan analisis dalam format JSON berikut:
 {
-  "analisis": "Analisis komprehensif (maksimal 10 kalimat)",
-  "rekomendasi": "Rekomendasi konkret dengan durasi spesifik",
-  "catatan": "Catatan penting atau tindakan pencegahan (1-6 kalimat)"
+  "analisis": "Analisis lengkap kondisi pasien berdasarkan keluhan dan jawaban (3-4 kalimat)",
+  "rekomendasi": "Rekomendasi konkret termasuk durasi istirahat dan tindakan yang diperlukan (1-2 kalimat)",
+  "catatan": "Catatan tambahan untuk pencegahan atau hal yang perlu diperhatikan (1 kalimat)"
 }
 
-Panduan Konten:
-- Analisis: Fokus pada temuan kunci, hindari pengulangan informasi
-- Rekomendasi: Sebutkan durasi istirahat dan tindakan spesifik
-- Catatan: Tambahkan informasi penting yang perlu diperhatikan pasien
+PANDUAN ANALISIS:
+1. Fokus pada korelasi antara gejala dan jawaban pasien
+2. Pertimbangkan faktor usia dan gender
+3. Berikan rekomendasi spesifik dan terukur
+4. Sertakan langkah pencegahan yang relevan
 
-Output harus berupa JSON valid tanpa teks tambahan.`;
+Berikan respons dalam format JSON yang valid.`;
 
-  try {
+    logger.debug('Sending AI prompt:', { prompt });
+
     const completion = await openai.chat.completions.create({
-      model: "google/gemini-pro",
+      model: "google/gemini-2.0-flash-thinking-exp:free",
       messages: [
         {
           role: "system",
-          content:
-            "Anda adalah dokter yang memberikan analisis dalam format JSON yang valid. Respon harus berupa JSON murni tanpa teks tambahan.",
+          content: "Anda adalah dokter yang memberikan analisis medis profesional dalam format JSON yang valid dan terstruktur.",
         },
         { role: "user", content: prompt },
       ],
-      temperature: 0.3, // Lower temperature for more consistent output
+      temperature: 0.3,
+      max_tokens: 1000,
     });
 
-    let response = completion.choices[0].message.content.trim();
-    console.log("Raw AI Response:", response); // Debug log
+    logger.debug('Raw AI response:', completion?.choices?.[0]?.message?.content);
 
-    // Clean the response: remove any text before { and after }
-    response = response.substring(
-      response.indexOf("{"),
-      response.lastIndexOf("}") + 1
-    );
+    if (!completion?.choices?.[0]?.message?.content) {
+      throw new Error('Empty response from AI service');
+    }
 
-    // Remove any line breaks and escape characters
-    response = response.replace(/[\n\r\t]/g, " ").replace(/\s+/g, " ");
-
-    console.log("Cleaned AI Response:", response); // Debug log
-
-    let result;
+    const rawResponse = completion.choices[0].message.content.trim();
+    
+    // Try multiple parsing approaches
+    let analysisData;
     try {
-      result = JSON.parse(response);
-    } catch (parseError) {
-      console.error("JSON Parse Error:", parseError);
-      throw new Error("Invalid JSON format in AI response");
+      // Direct parse attempt
+      analysisData = JSON.parse(rawResponse);
+    } catch (firstError) {
+      logger.debug('First parse attempt failed, trying to extract JSON', { rawResponse });
+      
+      // Try to extract JSON object
+      const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        logger.error('Could not find JSON pattern in response', { rawResponse });
+        throw new Error('Invalid response format from AI service');
+      }
+
+      try {
+        analysisData = JSON.parse(jsonMatch[0]);
+      } catch (secondError) {
+        logger.error('All parsing attempts failed', { rawResponse, firstError, secondError });
+        throw new Error('Failed to parse AI response');
+      }
     }
 
-    // Validate required fields
-    if (!result.analisis || !result.rekomendasi) {
-      throw new Error("Missing required fields in AI response");
+    // Validate the response structure
+    if (!analysisData?.analisis || !analysisData?.rekomendasi) {
+      logger.error('Invalid response structure', { analysisData });
+      throw new Error('Invalid analysis data structure');
     }
 
-    // Save analysis to SickLeave
-    sickLeave.analisis = result.analisis;
-    sickLeave.rekomendasi = result.rekomendasi;
-    sickLeave.catatan = result.catatan || "Tidak ada catatan tambahan";
+    // Save to SickLeave document
+    sickLeave.analisis = analysisData.analisis;
+    sickLeave.rekomendasi = analysisData.rekomendasi;
+    sickLeave.catatan = analysisData.catatan || "Tidak ada catatan tambahan";
+    
     await sickLeave.save();
+    logger.info('Successfully saved analysis');
 
     return {
-      analisis: result.analisis,
-      rekomendasi: result.rekomendasi,
-      catatan: result.catatan || "Tidak ada catatan tambahan",
+      analisis: sickLeave.analisis,
+      rekomendasi: sickLeave.rekomendasi,
+      catatan: sickLeave.catatan,
     };
+
   } catch (error) {
-    console.error("Error in analyzeAnswers:", error);
+    logger.error('Analysis generation error:', {
+      error: error.message,
+      sickLeaveId: sickLeave._id,
+      reason: sickLeave.reason
+    });
 
-    // Fallback response
-    const fallbackResponse = {
-      analisis:
-        "Berdasarkan gejala yang dilaporkan, pasien memerlukan istirahat.",
-      rekomendasi: "Istirahat selama 1-2 hari",
-      catatan:
-        "Silahkan konsultasi lebih lanjut dengan dokter jika keluhan berlanjut.",
+    // Create context-aware fallback response
+    const fallbackAnalysis = {
+      analisis: `Pasien ${sickLeave.username} (${sickLeave.age} tahun) melaporkan ${sickLeave.reason.toLowerCase()}` + 
+                (sickLeave.answers?.length ? ` yang telah berlangsung selama ${sickLeave.answers[0].answer}.` : '.') +
+                ' Berdasarkan keluhan yang dilaporkan, diperlukan istirahat untuk pemulihan optimal.',
+      rekomendasi: `Direkomendasikan untuk istirahat selama 1-2 hari dan menghindari aktivitas yang memberatkan.`,
+      catatan: `Harap segera konsultasi dengan dokter jika keluhan memberat atau tidak membaik dalam 48 jam.`,
     };
 
-    // Save fallback to SickLeave
-    Object.assign(sickLeave, fallbackResponse);
+    // Save fallback response
+    Object.assign(sickLeave, fallbackAnalysis);
     await sickLeave.save();
+    logger.info('Using fallback analysis');
 
-    return fallbackResponse;
+    return fallbackAnalysis;
   }
 }
 

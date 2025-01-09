@@ -4,6 +4,7 @@ const SickLeave = require("../models/SickLeave");
 const mongoose = require("mongoose");
 const path = require("path");
 const dotenv = require("dotenv");
+const logger = require('../utils/logger'); // Add logger import
 
 // Load environment variables based on NODE_ENV
 dotenv.config({
@@ -45,20 +46,22 @@ const openai = new OpenAI({
 // Fungsi untuk membuat form sick leave
 const createSickLeaveForm = async (request, h) => {
   try {
-    // Add detailed payload logging
-    console.log("Raw payload:", JSON.stringify(request.payload, null, 2));
+    // Detailed logging at the start
+    logger.info('Received sick leave form submission:', {
+      payload: request.payload,
+      headers: request.headers
+    });
 
     const { payload } = request;
 
     // Validate payload exists
     if (!payload) {
-      return h
-        .response({
-          statusCode: 400,
-          error: "Bad Request",
-          message: "No payload received",
-        })
-        .code(400);
+      logger.warn('No payload received in createSickLeaveForm');
+      return h.response({
+        statusCode: 400,
+        error: "Bad Request",
+        message: "No payload received",
+      }).code(400);
     }
 
     let {
@@ -74,151 +77,235 @@ const createSickLeaveForm = async (request, h) => {
       phoneNumber,
     } = payload;
 
-    // Log each field for debugging
-    console.log("Received fields:", {
+    // Log sanitized input data
+    logger.debug('Sanitized input data:', {
       fullName,
       position,
       institution,
       startDate,
       sickReason,
-      otherReason,
       gender,
       age,
-      contactEmail,
-      phoneNumber,
+      contactEmail
     });
 
-    // Validate required fields with detailed messages
-    const requiredFields = {
-      fullName: "Nama lengkap",
-      position: "Jabatan",
-      institution: "Institusi",
-      startDate: "Tanggal mulai",
-      sickReason: "Alasan sakit",
-      gender: "Jenis kelamin",
-      contactEmail: "Email",
-      phoneNumber: "Nomor telepon",
-    };
-
-    for (const [field, label] of Object.entries(requiredFields)) {
-      if (
-        !payload[field] ||
-        (typeof payload[field] === "string" && !payload[field].trim())
-      ) {
-        return h
-          .response({
-            statusCode: 400,
-            error: "Bad Request",
-            message: `${label} wajib diisi`,
-            field,
-          })
-          .code(400);
-      }
-    }
-
-    // Validate and convert age
-    const numericAge = Number(age);
-    if (isNaN(numericAge) || numericAge < 1) {
-      return h
-        .response({
-          statusCode: 400,
-          error: "Bad Request",
-          message: "Usia harus berupa angka positif",
-          field: "age",
-        })
-        .code(400);
-    }
-
-    // Create sanitized data object
+    // Create sanitized data object with id field
     const sanitizedData = {
-      id: uuidv4(),
-      username: fullName.trim(),
-      reason: sickReason.trim(),
-      otherReason: otherReason ? otherReason.trim() : "",
+      id: uuidv4(), // Add this line to generate a unique id
+      username: fullName?.trim(),
+      position: position?.trim(),
+      institution: institution?.trim(),
       date: new Date(startDate),
-      gender: gender.trim(),
-      age: numericAge,
-      institution: institution.trim(),
-      contactEmail: contactEmail.trim(),
-      phoneNumber: phoneNumber.trim(),
+      reason: sickReason?.trim(),
+      otherReason: otherReason ? otherReason.trim() : "",
+      gender: gender?.trim(),
+      age: Number(age),
+      contactEmail: contactEmail?.trim(),
+      phoneNumber: phoneNumber?.trim(),
       status: "Diajukan",
     };
 
-    // Create new SickLeave instance
-    const sickLeave = new SickLeave(sanitizedData);
-
-    // Save to database
-    const savedSickLeave = await sickLeave.save();
-    console.log("Saved sick leave:", savedSickLeave);
-
-    // Format prompt untuk AI
-    const promptMessage = `
-      Sebagai asisten medis, buatkan 3-5 pertanyaan lanjutan berdasarkan informasi pasien berikut:
-      - Gejala: ${sickReason} ${otherReason ? `(${otherReason})` : ""}
-      - Jenis Kelamin: ${gender}
-      - Umur: ${age}
-      
-      Berikan pertanyaan dalam format array JSON sederhana. Contoh:
-      ["Pertanyaan 1?", "Pertanyaan 2?", "Pertanyaan 3?"]
-    `;
-
-    // Gunakan OpenRouter API
-    const completion = await openai.chat.completions.create({
-      model: "google/gemini-pro", // atau model lain yang tersedia
-      messages: [
-        {
-          role: "system",
-          content:
-            "Anda adalah asisten medis yang membantu menganalisis kondisi pasien yang mengajukan izin sakit.",
-        },
-        {
-          role: "user",
-          content: promptMessage,
-        },
-      ],
-      temperature: 0.7,
+    // Validate required fields
+    const missingFields = Object.entries(sanitizedData).filter(([key, value]) => {
+      if (key === 'otherReason') return false; // Optional field
+      return !value && value !== 0;
     });
 
-    // Parse response dan format pertanyaan
-    const aiResponse = completion.choices[0].message.content;
-    let questions;
-    try {
-      questions = JSON.parse(aiResponse);
-    } catch (e) {
-      // Jika parsing gagal, coba ekstrak array dari string
-      const match = aiResponse.match(/\[.*\]/s);
-      if (match) {
-        questions = JSON.parse(match[0]);
-      } else {
-        throw new Error("Failed to parse AI response");
-      }
+    if (missingFields.length > 0) {
+      logger.warn('Missing required fields:', missingFields);
+      return h.response({
+        statusCode: 400,
+        error: "Bad Request",
+        message: `Missing required fields: ${missingFields.map(([key]) => key).join(', ')}`,
+        fields: missingFields
+      }).code(400);
     }
 
-    const formattedQuestions = questions.map((q, idx) => ({
-      id: `q${idx + 1}`,
-      text: q,
-      type: "open-ended",
-    }));
+    // Create new SickLeave instance with error handling
+    const sickLeave = new SickLeave(sanitizedData);
+    
+    // Validate model before saving
+    const validationError = sickLeave.validateSync();
+    if (validationError) {
+      logger.error('Mongoose validation error:', validationError);
+      return h.response({
+        statusCode: 400,
+        error: "Validation Error",
+        message: validationError.message,
+        details: validationError.errors
+      }).code(400);
+    }
 
-    // Return response with saved data and questions
-    return h
-      .response({
-        message: "Sick leave form submitted successfully",
-        questions: formattedQuestions,
-        formId: savedSickLeave._id.toString(),
-        sickLeave: savedSickLeave,
-      })
-      .code(201);
-  } catch (error) {
-    console.error("Error details:", error);
-    return h
-      .response({
+    // Save to database with detailed error handling
+    let savedSickLeave;
+    try {
+      savedSickLeave = await sickLeave.save();
+      logger.info('Successfully saved sick leave:', {
+        id: savedSickLeave._id,
+        username: savedSickLeave.username
+      });
+    } catch (dbError) {
+      logger.error('Database save error:', dbError);
+      return h.response({
         statusCode: 500,
-        error: "Internal Server Error",
-        message: error.message,
-        details: error.stack,
-      })
-      .code(500);
+        error: "Database Error",
+        message: "Failed to save sick leave form",
+        details: dbError.message
+      }).code(500);
+    }
+
+    // Generate AI questions
+    let questions;
+    try {
+      const promptMessage = `Sebagai dokter, buatkan 5 pertanyaan penilaian medis untuk pasien:
+Kondisi Pasien:
+- Keluhan: ${sickReason}
+- Usia: ${age} tahun
+- Jenis Kelamin: ${gender}
+
+Kriteria Pertanyaan:
+1. DURASI & ONSET: Tanyakan kapan gejala mulai dan pola kemunculannya
+2. SEVERITY: Ukur tingkat keparahan dengan skala atau dampak ke aktivitas
+3. ASSOCIATED SYMPTOMS: Identifikasi gejala tambahan yang mungkin terkait
+4. AGGRAVATING/RELIEVING FACTORS: Faktor yang memperburuk atau meringankan
+5. RIWAYAT & PENANGANAN: Tanyakan riwayat medis terkait dan upaya penanganan
+
+Format output WAJIB dalam bentuk array JSON sederhana:
+[
+  "Pertanyaan tentang durasi/onset",
+  "Pertanyaan tentang severity",
+  "Pertanyaan tentang gejala tambahan",
+  "Pertanyaan tentang faktor yang mempengaruhi",
+  "Pertanyaan tentang riwayat & penanganan"
+]
+
+Panduan Khusus:
+- Gunakan bahasa yang mudah dipahami pasien
+- Buat pertanyaan spesifik untuk keluhan ${sickReason}
+- Hindari pertanyaan ya/tidak, gunakan pertanyaan terbuka
+- Susun pertanyaan secara sistematis sesuai urutan kriteria
+- Pastikan setiap pertanyaan memberikan informasi bernilai medis
+
+Output harus berupa array JSON valid, tanpa teks tambahan.`;
+
+      logger.info('Sending AI prompt for question generation:', {
+        sickReason,
+        gender,
+        age,
+        timestamp: new Date().toISOString()
+      });
+
+      const completion = await openai.chat.completions.create({
+        model: "google/gemini-2.0-flash-thinking-exp:free",
+        messages: [
+          {
+            role: "system",
+            content: "Anda adalah dokter yang membuat pertanyaan evaluasi medis. Berikan output HANYA dalam format array JSON.",
+          },
+          { role: "user", content: promptMessage },
+        ],
+        temperature: 0.3,
+        max_tokens: 500
+      });
+
+      logger.debug('Raw AI response:', completion?.choices?.[0]?.message?.content);
+
+      if (!completion?.choices?.[0]?.message?.content) {
+        throw new Error('Empty response from AI service');
+      }
+
+      const rawResponse = completion.choices[0].message.content.trim();
+
+      // Try multiple parsing strategies
+      let parsedQuestions;
+      try {
+        // Direct JSON parse attempt
+        parsedQuestions = JSON.parse(rawResponse);
+      } catch (firstError) {
+        logger.debug('First parse attempt failed, trying to extract array', { rawResponse });
+        
+        // Try to extract array from text
+        const arrayMatch = rawResponse.match(/\[([\s\S]*)\]/);
+        if (!arrayMatch) {
+          throw new Error('Could not find array pattern in response');
+        }
+
+        try {
+          parsedQuestions = JSON.parse(`[${arrayMatch[1]}]`);
+        } catch (secondError) {
+          logger.error('All parsing attempts failed', {
+            rawResponse,
+            firstError,
+            secondError
+          });
+          throw new Error('Failed to parse questions from AI response');
+        }
+      }
+
+      // Validate questions array
+      if (!Array.isArray(parsedQuestions)) {
+        throw new Error('AI response is not an array');
+      }
+
+      // Filter and clean questions
+      questions = parsedQuestions
+        .filter(q => typeof q === 'string' && q.trim().length > 0)
+        .map(q => q.trim());
+
+      if (questions.length < 3) {
+        throw new Error('Not enough valid questions generated');
+      }
+
+      logger.info(`Successfully generated ${questions.length} questions`);
+
+    } catch (aiError) {
+      logger.error('AI question generation error:', {
+        error: aiError.message,
+        sickReason,
+        gender,
+        age,
+        timestamp: new Date().toISOString()
+      });
+
+      // Update fallback questions to match the systematic approach
+      questions = [
+        `Kapan pertama kali Anda mengalami ${sickReason.toLowerCase()} dan bagaimana pola kemunculannya?`,
+        `Seberapa mengganggu ${sickReason.toLowerCase()} ini terhadap aktivitas sehari-hari Anda?`,
+        "Gejala atau keluhan lain apa saja yang Anda rasakan bersamaan dengan kondisi ini?",
+        `Hal-hal apa yang membuat ${sickReason.toLowerCase()} ini membaik atau memburuk?`,
+        "Apakah Anda memiliki riwayat kondisi serupa dan bagaimana penanganan yang sudah dilakukan?",
+      ];
+      
+      logger.info('Using improved fallback questions', {
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Format response with validated questions
+    return h.response({
+      message: "Sick leave form submitted successfully",
+      questions: questions.map((q, idx) => ({
+        id: `q${idx + 1}`,
+        text: q,
+        type: "open-ended",
+      })),
+      formId: savedSickLeave._id.toString(),
+      sickLeave: savedSickLeave,
+    }).code(201);
+
+  } catch (error) {
+    logger.error('createSickLeaveForm error:', {
+      error: error.message,
+      stack: error.stack,
+      payload: request.payload
+    });
+    
+    return h.response({
+      statusCode: 500,
+      error: "Internal Server Error",
+      message: "Failed to process sick leave form",
+      details: error.message
+    }).code(500);
   }
 };
 
@@ -337,13 +424,12 @@ const getSickLeaves = async (request, h) => {
       .sort({ date: -1 }) // Sort by date in descending order
       .select("reason date status institution _id"); // Select only needed fields
 
-    // Debug log to check the structure
-    console.log("Fetched sick leaves:", sickLeaves);
+    logger.debug("Fetched sick leaves:", sickLeaves);
 
     // Ensure we're sending an array
     return h.response(Array.isArray(sickLeaves) ? sickLeaves : []).code(200);
   } catch (error) {
-    console.error("Error fetching sick leaves:", error);
+    logger.error("Error fetching sick leaves:", error);
     return h.response({ message: "Error fetching sick leaves" }).code(500);
   }
 };

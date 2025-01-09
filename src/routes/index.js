@@ -287,7 +287,10 @@ const routes = [
         failAction: async (request, h, err) => {
           console.log("Validation Error for /api/save-answers:", err.details);
           console.log("Received payload:", request.payload);
-          return h.response({ message: "Invalid payload", errors: err.details }).code(400).takeover();
+          return h
+            .response({ message: "Invalid payload", errors: err.details })
+            .code(400)
+            .takeover();
         },
         payload: Joi.object({
           formId: Joi.string().required().messages({
@@ -328,6 +331,11 @@ const routes = [
       cache: {
         expiresIn: 30 * 60 * 1000,
         privacy: "public",
+      },
+      validate: {
+        params: Joi.object({
+          id: Joi.string().required(),
+        }),
       },
     },
   },
@@ -403,20 +411,6 @@ const routes = [
       ...standardRouteOptions,
       pre: [{ method: verifyToken }],
       auth: false,
-    },
-  },
-  {
-    method: "POST",
-    path: "/api/generate-pdf/{id}",
-    handler: generatePDF,
-    options: {
-      description: "Generate PDF document",
-      tags: ["api", "pdf"],
-      validate: {
-        params: Joi.object({
-          id: Joi.string().required(),
-        }),
-      },
     },
   },
   {

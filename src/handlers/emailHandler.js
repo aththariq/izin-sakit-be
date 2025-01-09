@@ -110,7 +110,7 @@ Buat format JSON dengan struktur berikut:
   "body": "Surat formal dengan format:
 
   Yth.
-  [Pimpinan/Atasan sesuai konteks, contoh: Kepala Departemen IT !!EDIT DENGAN SESUAIKAN KONTEKS SURAT!!]
+  [Pimpinan/Atasan sesuai konteks, contoh: Kepala Departemen IT ((ini perintah: !!EDIT DENGAN SESUAIKAN KONTEKS SURAT!!))]
   [Nama Institusi]
   di Tempat
 
@@ -146,7 +146,7 @@ Output harus berupa JSON yang valid tanpa teks tambahan di luar struktur JSON.
 `;
 
     const completion = await openai.chat.completions.create({
-      model: "google/gemini-pro",
+      model: "google/gemini-2.0-flash-thinking-exp:free",
       messages: [
         {
           role: "system",
@@ -161,44 +161,58 @@ Output harus berupa JSON yang valid tanpa teks tambahan di luar struktur JSON.
       temperature: 0.7,
     });
 
-    const aiResponse = completion.choices[0].message.content.trim();
-    logger.debug("AI Email Response before sanitization:", aiResponse);
+    // Add error checking for completion response
+    if (!completion || !completion.choices || completion.choices.length === 0) {
+      logger.error('Invalid AI response structure:', completion);
+      throw new Error('Failed to get valid response from AI');
+    }
 
-    // Sanitize the AI response by removing unwanted control characters
-    const sanitizedResponse = aiResponse.replace(/[\u0000-\u001F\u007F]/g, "");
+    const aiResponse = completion.choices[0]?.message?.content;
+    if (!aiResponse) {
+      logger.error('No content in AI response');
+      throw new Error('Empty response from AI');
+    }
+
+    const sanitizedResponse = aiResponse.trim().replace(/[\u0000-\u001F\u007F]/g, "");
     logger.debug("AI Email Response after sanitization:", sanitizedResponse);
 
-    // Extract JSON from response
-    const jsonMatch = sanitizedResponse.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("Invalid JSON format in AI email response");
-    }
-
-    const jsonStr = jsonMatch[0];
-    let emailData;
+    // Improved JSON extraction
+    let jsonData;
     try {
-      emailData = JSON.parse(jsonStr);
+      // First try direct parse
+      jsonData = JSON.parse(sanitizedResponse);
     } catch (e) {
-      throw new Error("Failed to parse AI email JSON response");
+      // If direct parse fails, try to extract JSON
+      const jsonMatch = sanitizedResponse.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error("Could not find valid JSON in AI response");
+      }
+      jsonData = JSON.parse(jsonMatch[0]);
     }
 
-    // Validate required fields
-    if (!emailData.subject || !emailData.body) {
-      throw new Error("Missing 'subject' or 'body' in AI email response");
+    // Validate the parsed data
+    if (!jsonData || typeof jsonData !== 'object') {
+      throw new Error('Invalid JSON structure in AI response');
     }
 
-    // Send email with generated subject and body
+    // Use fallback values if needed
+    const emailData = {
+      subject: jsonData.subject || `Surat Keterangan Sakit - ${sickLeave.username}`,
+      body: jsonData.body || 'Terlampir surat keterangan sakit.'
+    };
+
+    // Send email with generated content
     await sendEmailWithAttachment(
       email,
-      emailData.subject, // Use dynamic subject
-      emailData.body, // Use dynamic body
+      emailData.subject,
+      emailData.body,
       {
         filename: "surat_keterangan_sakit.pdf",
         path: existingPdfPath,
       }
     );
 
-    logger.info(`Email sent to ${email} for ID: ${id} with generated subject and body`);
+    logger.info(`Email sent successfully to ${email} for ID: ${id}`);
 
   } catch (error) {
     logger.error('sendPDFEmailUtility failed:', {
