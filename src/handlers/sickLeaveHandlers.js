@@ -173,7 +173,7 @@ const createSickLeaveForm = async (request, h) => {
       })
       .code(201);
   } catch (error) {
-    console.error("Error in createSickLeaveForm:", error);
+    console.error("Error in createSickLeaveForm:", error); // Enhanced error logging
     return h
       .response({
         message: "Error while processing the form",

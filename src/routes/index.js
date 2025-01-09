@@ -273,8 +273,29 @@ const routes = [
     options: {
       cors: corsOptions,
       timeout: {
-        server: 300000,
+        server: 300000, // 5 minutes
         socket: 310000,
+      },
+      description: "Convert PDF to Image",
+      notes: "Generates an image preview from the sick leave PDF.",
+      tags: ["api", "pdf"],
+      plugins: {
+        "hapi-swagger": {
+          responses: {
+            200: {
+              description: "Image preview generated successfully",
+              schema: Joi.object({
+                // Define the response schema if necessary
+              }),
+            },
+            404: {
+              description: "Sick leave not found",
+            },
+            500: {
+              description: "Internal Server Error",
+            },
+          },
+        },
       },
     },
   },

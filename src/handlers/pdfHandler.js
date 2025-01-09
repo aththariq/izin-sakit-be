@@ -127,6 +127,8 @@ async function analyzeAnswers(sickLeave) {
 
 // Add a standalone function to generate PDF
 async function generatePDF(sickLeave, filePath) {
+  console.log(`Generating PDF for SickLeave ID: ${sickLeave._id}`); // Added logging
+
   const doc = new PDFDocument({
     size: "A4",
     margin: 50,
@@ -277,8 +279,14 @@ async function generatePDF(sickLeave, filePath) {
       );
 
     doc.end();
-    writeStream.on("finish", () => resolve(filePath));
-    writeStream.on("error", reject);
+    writeStream.on("finish", () => {
+      console.log(`PDF successfully saved at ${filePath}.`); // Added logging
+      resolve(filePath);
+    });
+    writeStream.on("error", (err) => {
+      console.error(`Error writing PDF to ${filePath}:`, err); // Added logging
+      reject(err);
+    });
   });
 }
 
@@ -535,6 +543,15 @@ const convertPdfToImageHandler = async (request, h) => {
       .code(500);
   }
 };
+};
+
+// Make sure export matches the imported name in routes
+module.exports = {
+  generateAndSendPDF,
+  convertPdfToImageHandler,
+};
+
+
 
 // Make sure export matches the imported name in routes
 module.exports = {
