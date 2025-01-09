@@ -149,9 +149,11 @@ API ini akan mengembalikan kode kesalahan berikut jika terjadi masalah:
 ### User Registration Response
 
 #### Success Response (201 Created)
+```
 {
     "message": "User registered successfully"
 }
+```
 
 #### Error Response (400 Bad Request)
 {
