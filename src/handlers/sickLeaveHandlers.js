@@ -2,41 +2,64 @@ const OpenAI = require("openai");
 const { v4: uuidv4 } = require("uuid");
 const SickLeave = require("../models/SickLeave");
 const mongoose = require("mongoose");
-const path = require('path');
-const dotenv = require('dotenv');
+const path = require("path");
+const dotenv = require("dotenv");
 
 // Load environment variables based on NODE_ENV
 dotenv.config({
   path: path.resolve(
     __dirname,
-    '../..',
-    process.env.NODE_ENV === "production" ? ".env.production" : ".env.development"
+    "../..",
+    process.env.NODE_ENV === "production"
+      ? ".env.production"
+      : ".env.development"
   ),
 });
 
 // Debug log untuk memeriksa environment variables
-console.log('Environment:', process.env.NODE_ENV);
-console.log('OPENROUTER_API_KEY:', process.env.OPENROUTER_API_KEY ? 'Present' : 'Missing');
-console.log('Using config file:', path.resolve(
-  __dirname,
-  '../..',
-  process.env.NODE_ENV === "production" ? ".env.production" : ".env.development"
-));
+console.log("Environment:", process.env.NODE_ENV);
+console.log(
+  "OPENROUTER_API_KEY:",
+  process.env.OPENROUTER_API_KEY ? "Present" : "Missing"
+);
+console.log(
+  "Using config file:",
+  path.resolve(
+    __dirname,
+    "../..",
+    process.env.NODE_ENV === "production"
+      ? ".env.production"
+      : ".env.development"
+  )
+);
 
 const openai = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
   apiKey: process.env.OPENROUTER_API_KEY,
   defaultHeaders: {
     "HTTP-Referer": process.env.FRONTEND_URL || "http://localhost:5173",
-    "X-Title": "Izin Sakit App"
-  }
+    "X-Title": "Izin Sakit App",
+  },
 });
 
 // Fungsi untuk membuat form sick leave
 const createSickLeaveForm = async (request, h) => {
   try {
-    // Log incoming data
-    console.log("Received payload:", request.payload);
+    // Add detailed payload logging
+    console.log("Raw payload:", JSON.stringify(request.payload, null, 2));
+
+    const { payload } = request;
+
+    // Validate payload exists
+    if (!payload) {
+      return h
+        .response({
+          statusCode: 400,
+          error: "Bad Request",
+          message: "No payload received",
+        })
+        .code(400);
+    }
 
     let {
       fullName,
@@ -47,69 +70,86 @@ const createSickLeaveForm = async (request, h) => {
       otherReason,
       gender,
       age,
-      contactEmail, // Extract contactEmail from payload
-      phoneNumber, // Extract phoneNumber from payload
-    } = request.payload;
+      contactEmail,
+      phoneNumber,
+    } = payload;
 
-    // Ensure age is a number
-    age = typeof age === "string" ? Number(age) : age;
-
-    if (isNaN(age)) {
-      return h
-        .response({
-          message: "Age must be a valid number",
-          receivedData: { age, type: typeof age },
-        })
-        .code(400);
-    }
-
-    // Reintroduce type coercion
-    age = Number(age); // Convert age to number
-    console.log("Coerced Age:", age, typeof age);
-
-    // Log types of received fields
-    console.log("Data Types:", {
-      fullName: typeof fullName,
-      position: typeof position,
-      institution: typeof institution,
-      startDate: typeof startDate,
-      sickReason: typeof sickReason,
-      gender: typeof gender,
-      age: typeof age,
-      contactEmail: typeof contactEmail,
-      phoneNumber: typeof phoneNumber,
+    // Log each field for debugging
+    console.log("Received fields:", {
+      fullName,
+      position,
+      institution,
+      startDate,
+      sickReason,
+      otherReason,
+      gender,
+      age,
+      contactEmail,
+      phoneNumber,
     });
 
-    // Validasi data yang diperlukan
-    if (
-      !fullName ||
-      !position ||
-      !institution ||
-      !startDate ||
-      !sickReason ||
-      !gender ||
-      isNaN(age) || // Check if age is a valid number
-      !contactEmail ||
-      !phoneNumber
-    ) {
-      console.log("Missing or invalid required fields", {
-        fullName,
-        position,
-        institution,
-        startDate,
-        sickReason,
-        gender,
-        age,
-        contactEmail,
-        phoneNumber,
-      });
+    // Validate required fields with detailed messages
+    const requiredFields = {
+      fullName: "Nama lengkap",
+      position: "Jabatan",
+      institution: "Institusi",
+      startDate: "Tanggal mulai",
+      sickReason: "Alasan sakit",
+      gender: "Jenis kelamin",
+      contactEmail: "Email",
+      phoneNumber: "Nomor telepon",
+    };
+
+    for (const [field, label] of Object.entries(requiredFields)) {
+      if (
+        !payload[field] ||
+        (typeof payload[field] === "string" && !payload[field].trim())
+      ) {
+        return h
+          .response({
+            statusCode: 400,
+            error: "Bad Request",
+            message: `${label} wajib diisi`,
+            field,
+          })
+          .code(400);
+      }
+    }
+
+    // Validate and convert age
+    const numericAge = Number(age);
+    if (isNaN(numericAge) || numericAge < 1) {
       return h
         .response({
-          message: "Missing or invalid required fields",
-          receivedData: request.payload,
+          statusCode: 400,
+          error: "Bad Request",
+          message: "Usia harus berupa angka positif",
+          field: "age",
         })
         .code(400);
     }
+
+    // Create sanitized data object
+    const sanitizedData = {
+      id: uuidv4(),
+      username: fullName.trim(),
+      reason: sickReason.trim(),
+      otherReason: otherReason ? otherReason.trim() : "",
+      date: new Date(startDate),
+      gender: gender.trim(),
+      age: numericAge,
+      institution: institution.trim(),
+      contactEmail: contactEmail.trim(),
+      phoneNumber: phoneNumber.trim(),
+      status: "Diajukan",
+    };
+
+    // Create new SickLeave instance
+    const sickLeave = new SickLeave(sanitizedData);
+
+    // Save to database
+    const savedSickLeave = await sickLeave.save();
+    console.log("Saved sick leave:", savedSickLeave);
 
     // Format prompt untuk AI
     const promptMessage = `
@@ -160,39 +200,23 @@ const createSickLeaveForm = async (request, h) => {
       type: "open-ended",
     }));
 
-    // Simpan form sick leave ke database
-    const sickLeave = new SickLeave({
-      id: uuidv4(),
-      username: fullName,
-      reason: sickReason,
-      otherReason, // Include otherReason from payload
-      date: new Date(startDate), // Ensure date is properly formatted
-      gender,
-      age: Number(age), // Ensure age is stored as number
-      institution, // Save institution from payload
-      contactEmail, // Save contactEmail
-      phoneNumber, // Save phoneNumber
-      status: "Diajukan",
-      // Remove the explicit _id assignment
-    });
-
-    const savedSickLeave = await sickLeave.save();
-    console.log("Created new sick leave:", savedSickLeave); // Debug log
-
+    // Return response with saved data and questions
     return h
       .response({
         message: "Sick leave form submitted successfully",
         questions: formattedQuestions,
-        formId: savedSickLeave._id.toString(), // Ensure formId is a string
-        sickLeave: savedSickLeave, // Include the created sick leave data
+        formId: savedSickLeave._id.toString(),
+        sickLeave: savedSickLeave,
       })
       .code(201);
   } catch (error) {
-    console.error("Error in createSickLeaveForm:", error); // Enhanced error logging
+    console.error("Error details:", error);
     return h
       .response({
-        message: "Error while processing the form",
-        error: error.message,
+        statusCode: 500,
+        error: "Internal Server Error",
+        message: error.message,
+        details: error.stack,
       })
       .code(500);
   }
@@ -200,45 +224,71 @@ const createSickLeaveForm = async (request, h) => {
 
 // Fungsi untuk menyimpan jawaban pada form sick leave
 const saveAnswersHandler = async (request, h) => {
+  // Detailed logging of the entire payload
+  console.log("Received payload in handler:", request.payload);
+
   const { formId, answers } = request.payload;
 
-  console.log("Received payload:", request.payload); // Debug log
+  // Log the type and value of formId
+  console.log(`Type of formId: ${typeof formId}`);
+  console.log(`Value of formId: ${formId}`);
+
+  // Log untuk debugging
+  console.log("Menerima payload:", {
+    formId: formId,
+    answersCount: answers?.length,
+  });
 
   try {
-    // Find the document first to verify it exists
+    // Validasi answers
+    if (!answers || !Array.isArray(answers) || answers.length === 0) {
+      return h
+        .response({
+          message: "answers tidak valid",
+          statusCode: 400,
+        })
+        .code(400);
+    }
+
+    // Cari dokumen untuk verifikasi
     const sickLeave = await SickLeave.findById(formId);
 
     if (!sickLeave) {
-      console.log("Form not found for ID:", formId);
+      console.log("Form tidak ditemukan:", formId);
       return h
         .response({
-          message: "Form not found",
+          message: "Form tidak ditemukan",
           statusCode: 404,
         })
         .code(404);
     }
 
-    // Update with formatted answers
+    // Update dokumen dengan jawaban yang diformat
     const updatedSickLeave = await SickLeave.findByIdAndUpdate(
       formId,
-      { $set: { answers: answers } },
+      {
+        $set: {
+          answers: answers.map(({ questionId, answer }) => ({
+            questionId,
+            answer: answer.trim(),
+          })),
+        },
+      },
       { new: true }
     );
 
-    console.log("Updated document:", updatedSickLeave); // Debug log
-
     return h
       .response({
-        message: "Answers saved successfully",
+        message: "Jawaban berhasil disimpan",
         formId: updatedSickLeave._id,
         statusCode: 200,
       })
       .code(200);
   } catch (error) {
-    console.error("Error saving answers:", error);
+    console.error("Error saat menyimpan jawaban:", error);
     return h
       .response({
-        message: "Error saving answers",
+        message: "Gagal menyimpan jawaban",
         error: error.message,
         statusCode: 500,
       })

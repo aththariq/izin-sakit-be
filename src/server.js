@@ -50,7 +50,6 @@ const init = async () => {
         payload: {
           maxBytes: 50 * 1024 * 1024, // 50MB
           timeout: 900000, // 15 menit
-          multipart: true,
           output: "stream",
         },
         timeout: {
