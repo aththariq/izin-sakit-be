@@ -4,7 +4,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    network_mode: "host"  # Ubah ke network mode host
+    network_mode: "host"
     env_file:
       - .env.production
     restart: unless-stopped
@@ -13,16 +13,16 @@ services:
     depends_on:
       - redis
     environment:
-      - REDIS_HOST=localhost  # Ubah karena menggunakan network host
+      - REDIS_HOST=localhost
       - REDIS_PORT=6379
-    sysctls:
-      - net.ipv4.ip_forward=1
-      - net.ipv4.conf.all.route_localnet=1
+      - BREVO_SMTP_USER=${BREVO_SMTP_USER}
+      - BREVO_SMTP_KEY=${BREVO_SMTP_KEY}
+      - EMAIL_USER=${EMAIL_USER}
 
   redis:
     image: redis:6.2-alpine
     restart: always
-    network_mode: "host"  # Ubah ke network mode host
+    network_mode: "host"
     command: redis-server --save 20 1 --loglevel warning
     volumes:
       - redis_data:/data

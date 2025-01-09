@@ -1,15 +1,14 @@
 const nodemailer = require("nodemailer");
 const logger = require("../utils/logger");
 
-// Create a transporter using environment variables
+// Create a transporter using Brevo SMTP
 const transporter = nodemailer.createTransport({
-  service: "gmail",
-  host: "142.251.175.109",
+  host: "smtp-relay.brevo.com",
   port: 587,
-  secure: false, // Gunakan STARTTLS
+  secure: false,
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD,
+    user: process.env.BREVO_SMTP_USER, // Email yang terdaftar di Brevo
+    pass: process.env.BREVO_SMTP_KEY, // SMTP key dari Brevo
   },
   pool: true,
   maxConnections: 5,
@@ -20,7 +19,6 @@ const transporter = nodemailer.createTransport({
 // Function to send email with attachment
 const sendEmailWithAttachment = async (to, subject, text, attachment) => {
   try {
-    // Tambah retry logic
     const maxRetries = 3;
     let lastError;
 
@@ -40,7 +38,7 @@ const sendEmailWithAttachment = async (to, subject, text, attachment) => {
       } catch (error) {
         lastError = error;
         logger.error(`Retry ${i + 1} failed to send email to ${to}:`, error);
-        await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1))); // Exponential backoff
+        await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1)));
       }
     }
     throw lastError;
