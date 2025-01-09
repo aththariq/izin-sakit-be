@@ -2,6 +2,7 @@ FROM node:18-alpine
 
 # Install semua dependencies yang diperlukan
 RUN apk add --no-cache \
+    graphicsmagick \
     imagemagick \
     ghostscript \
     imagemagick-dev \

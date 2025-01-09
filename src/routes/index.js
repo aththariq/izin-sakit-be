@@ -28,7 +28,8 @@ const corsOptions = {
   origin: [
     "https://www.izinsakit.site",
     "http://izinsakit.site",
-    "izin-sakit.vercel.app",
+    "https://izin-sakit.vercel.app",
+    "http://localhost:5173" // Add localhost for development
   ],
   headers: [
     "Accept",
@@ -43,6 +44,14 @@ const corsOptions = {
   additionalExposedHeaders: ["access-control-allow-origin"],
   maxAge: 86400,
   credentials: true,
+};
+
+const standardRouteOptions = {
+  cors: corsOptions,
+  timeout: {
+    server: 300000,
+    socket: 310000,
+  },
 };
 
 const tempPath = path.join(__dirname, "../temp");
@@ -61,6 +70,7 @@ const routes = [
       };
     },
     options: {
+      ...standardRouteOptions,
       description: "Welcome endpoint",
       notes: "Returns a welcome message",
       tags: ["api"],
@@ -83,6 +93,7 @@ const routes = [
     path: "/register",
     handler: registerUser,
     options: {
+      ...standardRouteOptions,
       description: "Register new user",
       notes: "Creates a new user account",
       tags: ["api", "users"],
@@ -130,6 +141,7 @@ const routes = [
     path: "/login",
     handler: loginUser,
     options: {
+      ...standardRouteOptions,
       description: "User login",
       notes: "Authenticates user and returns JWT token",
       tags: ["api", "users"],
@@ -155,6 +167,7 @@ const routes = [
     path: "/sick-leave",
     handler: createSickLeave,
     options: {
+      ...standardRouteOptions,
       pre: [{ method: verifyToken }],
       validate: {
         payload: Joi.object({
@@ -169,6 +182,7 @@ const routes = [
     path: "/sick-leave/{id}",
     handler: getSickLeaveById,
     options: {
+      ...standardRouteOptions,
       pre: [{ method: verifyToken }],
     },
   },
@@ -186,8 +200,8 @@ const routes = [
     path: "/auth/google/callback",
     handler: handleGoogleCallback,
     options: {
+      ...standardRouteOptions,
       auth: false,
-      cors: corsOptions,
     },
   },
   {
@@ -195,7 +209,7 @@ const routes = [
     path: "/api/sick-leave-form",
     handler: createSickLeaveForm,
     options: {
-      cors: corsOptions,
+      ...standardRouteOptions,
       validate: {
         payload: Joi.object({
           fullName: Joi.string().min(1).required(),
@@ -217,7 +231,7 @@ const routes = [
     path: "/api/save-answers",
     handler: saveAnswersHandler,
     options: {
-      cors: corsOptions,
+      ...standardRouteOptions,
       validate: {
         payload: Joi.object({
           formId: Joi.string().required(),
@@ -240,7 +254,7 @@ const routes = [
     options: {
       cors: corsOptions, // Ensure CORS options are applied
       timeout: {
-        server: 300000, // 5 menit
+        server: 300000, // 5 minutes
         socket: 310000,
       },
     },
@@ -258,12 +272,8 @@ const routes = [
       },
     },
     options: {
-      cors: corsOptions,
+      ...standardRouteOptions,
       auth: false,
-      timeout: {
-        server: 300000,
-        socket: 310000,
-      },
     },
   },
   {
@@ -271,11 +281,7 @@ const routes = [
     path: "/api/convert-pdf-to-image/{id}",
     handler: convertPdfToImageHandler,
     options: {
-      cors: corsOptions,
-      timeout: {
-        server: 300000, // 5 minutes
-        socket: 310000,
-      },
+      ...standardRouteOptions,
       description: "Convert PDF to Image",
       notes: "Generates an image preview from the sick leave PDF.",
       tags: ["api", "pdf"],
@@ -304,8 +310,8 @@ const routes = [
     path: "/api/sick-leaves",
     handler: getSickLeaves,
     options: {
+      ...standardRouteOptions,
       pre: [{ method: verifyToken }],
-      cors: corsOptions,
     },
   },
   {
@@ -313,8 +319,8 @@ const routes = [
     path: "/api/dashboard/sick-leaves",
     handler: getDashboardSickLeaves,
     options: {
+      ...standardRouteOptions,
       pre: [{ method: verifyToken }],
-      cors: corsOptions,
     },
   },
   {
@@ -322,26 +328,8 @@ const routes = [
     path: "/api/user/sick-leaves",
     handler: getUserSickLeaves,
     options: {
+      ...standardRouteOptions,
       pre: [{ method: verifyToken }],
-      cors: {
-        origin: ["https://www.izinsakit.site", "https://izinsakit.site"],
-        headers: [
-          "Accept",
-          "Authorization",
-          "Content-Type",
-          "If-None-Match",
-          "Accept-language",
-        ],
-        additionalHeaders: [
-          "cache-control",
-          "x-requested-with",
-          "authorization",
-          "content-type",
-        ],
-        exposedHeaders: ["Accept"],
-        maxAge: 86400,
-        credentials: true,
-      },
       auth: false,
     },
   },

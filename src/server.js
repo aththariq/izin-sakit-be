@@ -30,7 +30,7 @@ const init = async () => {
           origin: [
             "https://www.izinsakit.site",
             "https://izinsakit.site",
-            "izin-sakit.vercel.app",
+            "https://izin-sakit.vercel.app",
           ],
           headers: [
             "Accept",
@@ -40,11 +40,24 @@ const init = async () => {
             "Accept-language",
             "cache-control",
             "x-requested-with",
+            "access-control-allow-origin",
+            "access-control-allow-headers",
+            "access-control-expose-headers",
+            "access-control-allow-credentials",
           ],
-          exposedHeaders: ["Accept", "Content-Type", "Authorization"],
-          additionalExposedHeaders: ["access-control-allow-origin"],
-          maxAge: 86400,
+          exposedHeaders: [
+            "Accept",
+            "Content-Type",
+            "Authorization",
+            "access-control-allow-origin",
+          ],
+          additionalHeaders: [
+            "cache-control",
+            "x-requested-with",
+            "access-control-allow-origin",
+          ],
           credentials: true,
+          maxAge: 86400,
         },
         payload: {
           maxBytes: 10485760,
