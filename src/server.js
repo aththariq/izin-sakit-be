@@ -9,7 +9,7 @@ const path = require("path");
 const fs = require("fs");
 const routes = require("./routes");
 const Pack = require("../package.json");
-const corsMiddleware = require('./middleware/cors');
+const corsMiddleware = require("./middleware/cors");
 
 // Load environment variables based on NODE_ENV
 dotenv.config({
@@ -26,7 +26,7 @@ const init = async () => {
     // Add check for existing server
     const existingServer = await checkPortInUse(process.env.PORT || 3000);
     if (existingServer) {
-      console.log('Server is already running on port 3000');
+      console.log("Server is already running on port 3000");
       process.exit(1);
     }
 
@@ -48,12 +48,14 @@ const init = async () => {
           additionalHeaders: ["X-Requested-With"],
         },
         payload: {
-          maxBytes: 50 * 1024 * 1024, // Increase to 50MB
-          timeout: 600000, // 10 minutes
+          maxBytes: 50 * 1024 * 1024, // 50MB
+          timeout: 900000, // 15 menit
+          multipart: true,
+          output: "stream",
         },
         timeout: {
-          server: 600000, // 10 minutes
-          socket: 620000, // 10 minutes + 20 seconds
+          server: 900000, // 15 menit
+          socket: 920000, // 15 menit + 20 detik
         },
       },
     });
@@ -86,7 +88,7 @@ const init = async () => {
         plugin: HapiSwagger,
         options: swaggerOptions,
       },
-      corsMiddleware  // Add this line
+      corsMiddleware, // Add this line
     ]);
 
     // Create temp directory if it doesn't exist
@@ -128,16 +130,16 @@ const init = async () => {
 // Add utility function to check if port is in use
 const checkPortInUse = (port) => {
   return new Promise((resolve) => {
-    const net = require('net');
-    const tester = net.createServer()
-      .once('error', err => {
-        if (err.code === 'EADDRINUSE') {
+    const net = require("net");
+    const tester = net
+      .createServer()
+      .once("error", (err) => {
+        if (err.code === "EADDRINUSE") {
           resolve(true);
         }
       })
-      .once('listening', () => {
-        tester.once('close', () => resolve(false))
-          .close();
+      .once("listening", () => {
+        tester.once("close", () => resolve(false)).close();
       })
       .listen(port);
   });
@@ -148,6 +150,4 @@ process.on("unhandledRejection", (err) => {
   process.exit(1);
 });
 
-
 init();
-

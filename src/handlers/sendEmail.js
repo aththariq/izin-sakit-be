@@ -15,16 +15,34 @@ const transporter = nodemailer.createTransport({
 // Function to send email with attachment
 const sendEmailWithAttachment = async (to, subject, text, attachment) => {
   try {
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to,
-      subject,
-      text,
-      attachments: [attachment],
-    };
+    // Tambah retry logic
+    const maxRetries = 3;
+    let lastError;
 
-    await transporter.sendMail(mailOptions);
-    console.log(`Email sent to ${to}`);
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        const mailOptions = {
+          from: process.env.EMAIL_USER,
+          to,
+          subject,
+          text,
+          attachments: [attachment],
+          pool: true, // Enable connection pooling
+          maxConnections: 5,
+          rateDelta: 1000, // Limit rate
+          rateLimit: 5, // Max 5 emails per second
+        };
+
+        await transporter.sendMail(mailOptions);
+        console.log(`Email sent to ${to}`);
+        return;
+      } catch (error) {
+        lastError = error;
+        console.error(`Retry ${i + 1} failed:`, error);
+        await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1))); // Exponential backoff
+      }
+    }
+    throw lastError;
   } catch (error) {
     console.error("Error sending email:", error);
     throw error;
