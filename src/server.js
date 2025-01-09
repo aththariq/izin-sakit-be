@@ -27,7 +27,14 @@ const init = async () => {
       host: process.env.NODE_ENV === "production" ? "0.0.0.0" : "localhost",
       routes: {
         cors: {
-          origin: ["https://www.izinsakit.site", "http://www.izinsakit.site"],
+          origin: [
+            "https://www.izinsakit.site",
+            "http://www.izinsakit.site",
+            "https://izinsakit.site",
+            "http://izinsakit.site",
+            "https://izin-sakit.vercel.app",
+            "http://localhost:5173",
+          ],
           credentials: true,
           headers: ["Accept", "Content-Type", "Authorization"],
           additionalHeaders: ["X-Requested-With"],
