@@ -41,11 +41,15 @@ const corsOptions = {
     "Accept-language",
     "cache-control",
     "x-requested-with",
+    "Origin",
   ],
+  methods: ["GET", "POST", "OPTIONS"],
   exposedHeaders: ["Accept", "Content-Type", "Authorization"],
   additionalExposedHeaders: ["access-control-allow-origin"],
   maxAge: 86400,
   credentials: true,
+  preflightContinue: false, // Tambahkan ini
+  optionsSuccessStatus: 204, // Tambahkan ini
 };
 
 const standardRouteOptions = {
@@ -323,19 +327,14 @@ const routes = [
     path: "/api/generate-pdf/{id}",
     handler: generateAndSendPDF,
     options: {
-      cors: corsOptions,
+      cors: {
+        ...corsOptions,
+        origin: ["https://www.izinsakit.site"], 
+        credentials: true,
+      },
       timeout: {
         server: 600000,
         socket: 620000,
-      },
-      cache: {
-        expiresIn: 30 * 60 * 1000,
-        privacy: "public",
-      },
-      validate: {
-        params: Joi.object({
-          id: Joi.string().required(),
-        }),
       },
     },
   },
