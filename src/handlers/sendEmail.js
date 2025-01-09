@@ -1,4 +1,5 @@
 const nodemailer = require("nodemailer");
+const logger = require('../utils/logger');
 
 // Create a transporter using environment variables
 const transporter = nodemailer.createTransport({
@@ -10,6 +11,10 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER, // Your Gmail address
     pass: process.env.EMAIL_PASSWORD, // Your Gmail password or App Password
   },
+  pool: true, // Enable connection pooling
+  maxConnections: 5, // Adjust based on your needs
+  rateLimit: 10, // Allow up to 10 emails per second
+  rateDelta: 1000, // Per second
 });
 
 // Function to send email with attachment
@@ -27,24 +32,20 @@ const sendEmailWithAttachment = async (to, subject, text, attachment) => {
           subject,
           text,
           attachments: [attachment],
-          pool: true, // Enable connection pooling
-          maxConnections: 5,
-          rateDelta: 1000, // Limit rate
-          rateLimit: 5, // Max 5 emails per second
         };
 
         await transporter.sendMail(mailOptions);
-        console.log(`Email sent to ${to}`);
+        logger.info(`Email sent to ${to}`);
         return;
       } catch (error) {
         lastError = error;
-        console.error(`Retry ${i + 1} failed:`, error);
+        logger.error(`Retry ${i + 1} failed to send email to ${to}:`, error);
         await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1))); // Exponential backoff
       }
     }
     throw lastError;
   } catch (error) {
-    console.error("Error sending email:", error);
+    logger.error("Error sending email:", error);
     throw error;
   }
 };

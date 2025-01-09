@@ -10,6 +10,7 @@ const { performance } = require('perf_hooks');
 const { cacheManager, getCacheKey } = require('../utils/cache');
 const rateLimiter = require('../utils/rateLimit');
 const logger = require('../utils/logger');
+const { sendPDFEmailUtility } = require('./emailHandler'); // Import sendPDFEmailUtility
 
 class PDFGenerationError extends Error {
   constructor(message, cause) {
@@ -49,21 +50,42 @@ async function analyzeAnswers(sickLeave) {
   }
 
   const prompt = `
-    Berikan analisis medis untuk pasien dengan data berikut:
-    - Gejala: ${sickLeave.reason} ${
-    sickLeave.otherReason ? `(${sickLeave.otherReason})` : ""
-  }
-    - Usia: ${sickLeave.age}
-    - Jenis Kelamin: ${sickLeave.gender}
-    - Jawaban tambahan:
-    ${sickLeave.answers.map((a) => `  - ${a.answer}`).join("\n")}
-    
-    Berikan respons dalam format JSON yang valid:
-    {
-      "analisis": "analisis medis disini",
-      "rekomendasi": "rekomendasi disini",
-      "catatan": "catatan tambahan disini"
-    }`;
+Lakukan analisis medis komprehensif untuk pasien berikut dan berikan respons dalam format JSON:
+Pasien: 
+- Gejala Utama: ${sickLeave.reason} ${sickLeave.otherReason ? `(${sickLeave.otherReason})` : ""}
+- Usia: ${sickLeave.age}
+- Jenis Kelamin: ${sickLeave.gender}
+- Jawaban Tambahan: ${sickLeave.answers.map((a) => `${a.answer}`).join(" | ")}
+
+Berikan analisis dengan kriteria berikut (semua poin harus dibahas):
+1. Analisis Gejala:
+   - Gejala utama dan manifestasi klinisnya
+   - Gejala pendukung dan kaitannya dengan kondisi utama
+2. Evaluasi Keparahan:
+   - Tingkat keparahan berdasarkan usia dan kondisi
+   - Dampak potensial pada aktivitas sehari-hari
+3. Faktor Risiko:
+   - Faktor risiko yang relevan berdasarkan data yang tersedia
+   - Potensi komplikasi yang perlu diwaspadai
+4. Rekomendasi Medis:
+   - Rekomendasi spesifik dengan durasi yang jelas
+   - Tindakan yang harus diambil oleh pasien
+5. Catatan Tambahan:
+   - Informasi preventif atau tindakan pencegahan yang perlu diperhatikan
+
+Format respons JSON:
+{
+  "analisis": "Analisis komprehensif (maksimal 10 kalimat)",
+  "rekomendasi": "Rekomendasi konkret dengan durasi spesifik",
+  "catatan": "Catatan penting atau tindakan pencegahan (1-6 kalimat)"
+}
+
+Panduan Konten:
+- Analisis: Fokus pada temuan kunci, hindari pengulangan informasi
+- Rekomendasi: Sebutkan durasi istirahat dan tindakan spesifik
+- Catatan: Tambahkan informasi penting yang perlu diperhatikan pasien
+
+Output harus berupa JSON valid tanpa teks tambahan.`;
 
   try {
     const completion = await openai.chat.completions.create({
@@ -252,46 +274,27 @@ async function generatePDFDocument(sickLeave, filePath) {
       })
       .moveDown(1);
 
-    // Catatan Khusus jika ada
-    if (
-      sickLeave.catatan &&
-      sickLeave.catatan.trim() !== "Tidak ada catatan tambahan"
-    ) {
-      addSectionHeader("CATATAN KHUSUS");
-      doc
-        .font("Helvetica")
-        .text(sickLeave.catatan, {
-          lineGap: 3,
-          align: "justify",
-        })
-        .moveDown(1.5);
-    }
-
-    // Tanda tangan dan penutup
+    // Tanda tangan dengan layout yang efisien
     const today = new Date().toLocaleDateString("id-ID", {
-      weekday: "long",
       year: "numeric",
       month: "long",
       day: "numeric",
     });
 
     doc
-      .moveDown(1)
-      .font("Helvetica")
-      .text(`Diberikan di Jakarta, ${today}`, { align: "right" })
-      .moveDown(1)
+      .text(`Jakarta, ${today}`, { align: "right" })
+      .moveDown(0.3)
       .text("Dokter Pemeriksa,", { align: "right" })
-      .moveDown(3)
+      .moveDown(1.5)
       .font("Helvetica-Bold")
       .text("dr. AI System, Sp.KA", { align: "right" })
       .font("Helvetica")
-      .fontSize(10)
-      .text("Nomor SIP: AI/2024/001", { align: "right" })
-      .text("Dokter Spesialis Kecerdasan Artifisial", { align: "right" });
+      .fontSize(8)
+      .text("No. SIP: AI/2024/001", { align: "right" });
 
     // Footer
     doc
-      .fontSize(8)
+      .fontSize(7)
       .text(
         "Dokumen ini dihasilkan secara digital dan sah tanpa tanda tangan basah",
         {
@@ -304,9 +307,6 @@ async function generatePDFDocument(sickLeave, filePath) {
     doc.end();
     await streamPromise;
 
-    const endTime = performance.now();
-    logger.info(`PDF generation completed in ${endTime - startTime}ms`);
-    
     return filePath;
   } catch (error) {
     throw new PDFGenerationError('Failed to generate PDF', error);
@@ -356,7 +356,7 @@ const generateAndSendPDF = async (request, h) => {
 
     // If email is provided, send it
     if (email) {
-      await sendEmailWithPDF(email, pdfPath, id);
+      await sendPDFEmailUtility(id, email, pdfPath); // Use the utility function
       return h.response({
         message: 'PDF generated and sent successfully',
         cacheHit,
@@ -453,7 +453,6 @@ const convertPdfToImageHandler = async (request, h) => {
     const convert = pdf2pic.fromPath(filePath, options);
     const pageImage = await convert(1); // Convert halaman pertama saja
 
-    // Hapus require pdf-to-png-converter
     return h.file(pageImage.path, {
       mode: "inline",
       filename: "preview.png",
@@ -473,7 +472,7 @@ const convertPdfToImageHandler = async (request, h) => {
   }
 };
 
-// Make sure export matches the imported name in routes
+// Single export at the end of file
 module.exports = {
   generateAndSendPDF,
   convertPdfToImageHandler,
