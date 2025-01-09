@@ -319,7 +319,7 @@ const routes = [
     },
   },
   {
-    method: "GET",
+    method: "POST",
     path: "/api/generate-pdf/{id}",
     handler: generateAndSendPDF,
     options: {
