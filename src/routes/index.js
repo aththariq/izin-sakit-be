@@ -27,18 +27,27 @@ const { generatePDF } = require("../handlers/pdfGenerationHandler");
 const { sendPDFEmail, checkEmailStatus } = require("../handlers/emailHandler");
 
 const corsOptions = {
-  origin: ["https://www.izinsakit.site", "https://izinsakit.site"],
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  credentials: true,
-  headers: ["Accept", "Content-Type", "Authorization"],
-  exposedHeaders: ["Accept"],
+  origin: [
+    "https://www.izinsakit.site",
+    "http://izinsakit.site",
+    "https://izin-sakit.vercel.app",
+    "http://localhost:5173", // Add localhost for development
+  ],
+  headers: [
+    "Accept",
+    "Authorization",
+    "Content-Type",
+    "If-None-Match",
+    "Accept-language",
+    "cache-control",
+    "x-requested-with",
+    "Origin",
+  ],
+  exposedHeaders: ["Accept", "Content-Type", "Authorization"],
+  additionalExposedHeaders: ["access-control-allow-origin"],
   maxAge: 86400,
+  credentials: true,
 };
-
-await server.register({
-  plugin: require("@hapi/cors"),
-  options: corsOptions,
-});
 
 const standardRouteOptions = {
   cors: corsOptions,
@@ -311,16 +320,23 @@ const routes = [
     },
   },
   {
-    method: "POST",
+    method: "GET",
     path: "/api/generate-pdf/{id}",
     handler: generateAndSendPDF,
     options: {
       cors: corsOptions,
-      payload: {
-        output: "stream",
-        parse: true,
-        allow: ["application/json"],
-        maxBytes: 10485760,
+      timeout: {
+        server: 600000,
+        socket: 620000,
+      },
+      cache: {
+        expiresIn: 30 * 60 * 1000,
+        privacy: "public",
+      },
+      validate: {
+        params: Joi.object({
+          id: Joi.string().required(),
+        }),
       },
     },
   },
