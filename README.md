@@ -134,7 +134,6 @@ API ini akan mengembalikan kode kesalahan berikut jika terjadi masalah:
     "message": "Username already exists"
 }
 
-
 ### User Login Response
 
 #### Success Response (200 OK)
@@ -147,7 +146,6 @@ API ini akan mengembalikan kode kesalahan berikut jika terjadi masalah:
 {
     "message": "Email tidak terdaftar"
 }
-
 
 ### Create Sick Leave Response
 
@@ -199,6 +197,7 @@ API ini akan mengembalikan kode kesalahan berikut jika terjadi masalah:
 ## Example cURL Requests
 
 ### User Registration
+
 curl -X POST 'https://api.izinsakit.com/register' \
 -H 'Content-Type: application/json' \
 -d '{
@@ -208,6 +207,7 @@ curl -X POST 'https://api.izinsakit.com/register' \
 }'
 
 ### User Login
+
 curl -X POST 'https://api.izinsakit.com/login' \
 -H 'Content-Type: application/json' \
 -d '{
@@ -216,6 +216,7 @@ curl -X POST 'https://api.izinsakit.com/login' \
 }'
 
 ### Create Sick Leave
+
 curl -X POST 'https://api.izinsakit.com/sick-leave' \
 -H 'Content-Type: application/json' \
 -H 'Authorization: Bearer YOUR_ACCESS_TOKEN' \
@@ -225,10 +226,12 @@ curl -X POST 'https://api.izinsakit.com/sick-leave' \
 }'
 
 ### Get Sick Leave by ID
+
 curl -X GET 'https://api.izinsakit.com/sick-leave/SICK_LEAVE_ID' \
 -H 'Authorization: Bearer YOUR_ACCESS_TOKEN'
 
 ### Send PDF via Email
+
 curl -X POST 'https://api.izinsakit.com/api/send-pdf/SICK_LEAVE_ID' \
 -H 'Content-Type: application/json' \
 -H 'Authorization: Bearer YOUR_ACCESS_TOKEN' \
