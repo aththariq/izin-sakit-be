@@ -69,8 +69,13 @@ const createSickLeaveForm = async (request, h) => {
 
     // Log types of received fields
     console.log("Data Types:", {
-      age: typeof age,
+      fullName: typeof fullName,
+      position: typeof position,
+      institution: typeof institution,
       startDate: typeof startDate,
+      sickReason: typeof sickReason,
+      gender: typeof gender,
+      age: typeof age,
       contactEmail: typeof contactEmail,
       phoneNumber: typeof phoneNumber,
     });
