@@ -103,6 +103,13 @@ IzinSakit adalah platform inovatif yang memungkinkan pengguna untuk membuat sura
 - **Path**: /api/email-status/{jobId}
 - **Description**: Memeriksa status pengiriman email berdasarkan job ID.
 
+## Headers
+
+| Header Name     | Required | Description                      |
+|------------------|----------|----------------------------------|
+| Content-Type     | Yes      | application/json                 |
+| Authorization    | Yes      | Bearer {token}                  |
+
 ## Authentication
 API ini menggunakan token Bearer untuk autentikasi. Pastikan Anda memiliki token akses yang valid sebelum melakukan request.
 
@@ -112,3 +119,119 @@ API ini akan mengembalikan kode kesalahan berikut jika terjadi masalah:
 * `401 Unauthorized`: Token akses tidak valid atau tidak ada.
 * `404 Not Found`: Endpoint tidak ditemukan.
 * `500 Internal Server Error`: Terjadi kesalahan di server.
+
+## Example Responses
+
+### User Registration Response
+
+#### Success Response (201 Created)
+{
+    "message": "User registered successfully"
+}
+
+#### Error Response (400 Bad Request)
+{
+    "message": "Username already exists"
+}
+
+
+### User Login Response
+
+#### Success Response (200 OK)
+{
+    "message": "Login berhasil",
+    "token": "YOUR_JWT_TOKEN"
+}
+
+#### Error Response (400 Bad Request)
+{
+    "message": "Email tidak terdaftar"
+}
+
+
+### Create Sick Leave Response
+
+#### Success Response (201 Created)
+{
+    "message": "Sick leave created",
+    "data": {
+        "_id": "SICK_LEAVE_ID",
+        "username": "John Doe",
+        "reason": "Flu"
+    }
+}
+
+#### Error Response (400 Bad Request)
+{
+    "message": "Invalid input data"
+}
+
+### Get Sick Leave by ID Response
+
+#### Success Response (200 OK)
+{
+    "_id": "SICK_LEAVE_ID",
+    "username": "John Doe",
+    "reason": "Flu",
+    "date": "2025-01-10T00:00:00Z"
+}
+
+#### Error Response (404 Not Found)
+{
+    "message": "No sick leave found"
+}
+
+### Send PDF via Email Response
+
+#### Success Response (202 Accepted)
+{
+    "status": "queued",
+    "jobId": "JOB_ID",
+    "message": "Email sedang dalam proses pengiriman"
+}
+
+#### Error Response (400 Bad Request)
+{
+    "status": "error",
+    "message": "PDF belum digenerate, silakan generate terlebih dahulu"
+}
+
+## Example cURL Requests
+
+### User Registration
+curl -X POST 'https://api.izinsakit.com/register' \
+-H 'Content-Type: application/json' \
+-d '{
+    "username": "JohnDoe",
+    "email": "john@example.com",
+    "password": "password123"
+}'
+
+### User Login
+curl -X POST 'https://api.izinsakit.com/login' \
+-H 'Content-Type: application/json' \
+-d '{
+    "email": "john@example.com",
+    "password": "password123"
+}'
+
+### Create Sick Leave
+curl -X POST 'https://api.izinsakit.com/sick-leave' \
+-H 'Content-Type: application/json' \
+-H 'Authorization: Bearer YOUR_ACCESS_TOKEN' \
+-d '{
+    "username": "JohnDoe",
+    "reason": "Flu"
+}'
+
+### Get Sick Leave by ID
+curl -X GET 'https://api.izinsakit.com/sick-leave/SICK_LEAVE_ID' \
+-H 'Authorization: Bearer YOUR_ACCESS_TOKEN'
+
+### Send PDF via Email
+curl -X POST 'https://api.izinsakit.com/api/send-pdf/SICK_LEAVE_ID' \
+-H 'Content-Type: application/json' \
+-H 'Authorization: Bearer YOUR_ACCESS_TOKEN' \
+-d '{
+    "email": "recipient@example.com"
+}'
