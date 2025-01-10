@@ -305,8 +305,8 @@ Untuk menghasilkan kunci API, Anda harus terlebih dahulu memperoleh token JWT de
 4. Masukkan data berikut:
 ```
 {
-  "email": "user@example.com",
-  "password": "password123"
+  "email": "tesapi@izinsakit.com",
+  "password": "12345678"
 }
 ```
 
