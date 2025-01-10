@@ -10,6 +10,7 @@ const fs = require("fs");
 const routes = require("./routes");
 const Pack = require("../package.json");
 const corsMiddleware = require("./middleware/cors");
+const validateApiKey = require('./middleware/apiKeyAuth');
 
 // Load environment variables based on NODE_ENV
 dotenv.config({
@@ -98,6 +99,9 @@ const init = async () => {
       },
       corsMiddleware, // Add this line
     ]);
+
+    // Register API key validation for all routes
+    server.ext('onPreAuth', validateApiKey);
 
     // Create temp directory if it doesn't exist
     const tempDir = path.join(__dirname, "../temp");

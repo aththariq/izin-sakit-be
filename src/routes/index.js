@@ -31,6 +31,7 @@ const {
   cancelReservation,
   createCoworkingReservation,
 } = require("../handlers/coworkingHandler");
+const ApiKey = require('../models/apiKey');
 
 const corsOptions = {
   origin: [
@@ -499,4 +500,34 @@ const coworkingRoutes = [
   }
 ];
 
-module.exports = [...routes, ...coworkingRoutes];
+const apiKeyRoutes = [
+  {
+    method: 'POST',
+    path: '/api/keys/generate',
+    handler: async (request, h) => {
+      try {
+        const key = ApiKey.generateKey();
+        const apiKey = new ApiKey({
+          key,
+          description: request.payload.description
+        });
+        await apiKey.save();
+        return { key };
+      } catch (error) {
+        console.error('Error generating API key:', error);
+        return h.response({ message: 'Error generating API key' }).code(500);
+      }
+    },
+    options: {
+      ...standardRouteOptions,
+      pre: [{ method: verifyToken }], // Only authenticated users can generate API keys
+      validate: {
+        payload: Joi.object({
+          description: Joi.string().required()
+        })
+      }
+    }
+  }
+];
+
+module.exports = [...routes, ...coworkingRoutes, ...apiKeyRoutes];
