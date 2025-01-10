@@ -288,3 +288,67 @@ Request Body
   "sickLeaveId": "string"
 }
 ````
+
+
+# Tutorial: Memperoleh Kunci API dari Server
+
+### Langkah 1: Peroleh Token JWT
+Untuk menghasilkan kunci API, Anda harus terlebih dahulu memperoleh token JWT dengan masuk.
+
+#### Permintaan Masuk
+1. Buka Postman dan buat permintaan baru.
+
+2. Atur metode HTTP menjadi `POST` dan masukkan URL: `http://localhost:3000/login.`
+
+3. Pilih tab `Body`, pilih `raw`, dan setel jenis konten menjadi `JSON`.
+
+4. Masukkan data berikut:
+```
+{
+  "email": "user@example.com",
+  "password": "password123"
+}
+```
+
+5. Klik `Kirim`.
+
+
+### Respons Masuk
+Anda akan menerima respons JSON yang berisi `token`:
+```
+{
+  "message": "Masuk berhasil",
+  "token": "YOUR_JWT_TOKEN"
+}
+```
+Simpan token ini untuk digunakan dalam permintaan selanjutnya.
+
+### Langkah 2: Hasilkan Kunci API
+
+Dengan token JWT, hasilkan kunci API dengan mengirimkan permintaan POST ke `endpoint /api/keys/generate.`
+
+1. Buat permintaan baru di Postman.
+
+2. Atur metode HTTP menjadi POST dan masukkan URL: `http://localhost:3000/api/keys/generate.`
+
+3. Tambahkan header Authorization dengan nilai: `Bearer YOUR_JWT_TOKEN`.
+
+4. Pilih tab `Body`, pilih `raw`, dan setel jenis konten menjadi `JSON`.
+
+5. Masukkan data berikut: 
+```
+{
+  "description": "Kunci API Uji Coba"
+}
+```
+
+6.Klik `Kirim.`
+
+### Respons Hasilkan Kunci API
+Anda akan menerima respons JSON dengan kunci API yang dihasilkan:
+```
+{
+  "key": "GENERATED_API_KEY"
+}
+```
+Simpan kunci API ini untuk digunakan dalam permintaan berikutnya.
