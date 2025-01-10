@@ -23,6 +23,9 @@ dotenv.config({
 
 const init = async () => {
   try {
+    // Aktifkan mode debugging Mongoose
+    mongoose.set('debug', process.env.NODE_ENV !== "production");
+
     // Add check for existing server
     const existingServer = await checkPortInUse(process.env.PORT || 3000);
     if (existingServer) {
@@ -50,13 +53,19 @@ const init = async () => {
         payload: {
           maxBytes: 50 * 1024 * 1024, // 50MB
           timeout: 900000, // 15 menit
-          output: "stream",
+          output: "data", // Ubah dari 'stream' ke 'data' jika perlu
+          parse: true,      // Pastikan parsing aktif
+          failAction: async (request, h, err) => {
+            console.error("Payload validation error:", err.message);
+            throw Boom.badRequest(`Invalid request payload input: ${err.message}`);
+          },
         },
         timeout: {
           server: 900000, // 15 menit
           socket: 920000, // 15 menit + 20 detik
         },
       },
+      debug: process.env.NODE_ENV !== "production" ? { request: ['error'] } : false, // Tambahkan baris ini
     });
 
     const swaggerOptions = {

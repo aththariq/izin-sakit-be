@@ -101,21 +101,36 @@ const routes = [
       notes: "Creates a new user account",
       tags: ["api", "users"],
       validate: {
+        failAction: (request, h, err) => {
+          console.error('Validation error:', err.details);
+          return h
+            .response({
+              error: "Bad Request",
+              message: err.details[0].message, // Ubah baris ini
+            })
+            .code(400)
+            .takeover();
+        },
         payload: Joi.object({
-          username: Joi.string()
-            .min(3)
-            .max(30)
-            .required()
-            .description("Username between 3-30 characters"),
-          email: Joi.string()
-            .email()
-            .required()
-            .description("Valid email address"),
-          password: Joi.string()
-            .min(8)
-            .required()
-            .description("Password minimum 8 characters"),
-        }),
+          username: Joi.string().min(3).required().messages({
+            'string.base': 'Username harus berupa string',
+            'string.min': 'Username harus minimal 3 karakter',
+            'any.required': 'Username wajib diisi'
+          }),
+          email: Joi.string().email().required().messages({
+            'string.email': 'Silakan masukkan email yang valid',
+            'any.required': 'Email wajib diisi'
+          }),
+          password: Joi.string().min(8).required().messages({
+            'string.min': 'Password harus minimal 8 karakter',
+            'any.required': 'Password wajib diisi'
+          })
+        }).options({ stripUnknown: true })
+      },
+      payload: {
+        output: "data", // Tambahkan baris ini
+        parse: true,
+        allow: ["application/json"],
       },
       response: {
         schema: Joi.object({
@@ -372,7 +387,6 @@ const routes = [
             200: {
               description: "Image preview generated successfully",
               schema: Joi.object({
-                // Define the response schema if necessary
               }),
             },
             404: {
