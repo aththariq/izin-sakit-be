@@ -25,6 +25,12 @@ const path = require("path");
 const fs = require("fs");
 const { generatePDF } = require("../handlers/pdfGenerationHandler");
 const { sendPDFEmail, checkEmailStatus } = require("../handlers/emailHandler");
+const {
+  checkSeatAvailability,
+  createReservation,
+  cancelReservation,
+  createCoworkingReservation,
+} = require("../handlers/coworkingHandler");
 
 const corsOptions = {
   origin: [
@@ -102,7 +108,7 @@ const routes = [
       tags: ["api", "users"],
       validate: {
         failAction: (request, h, err) => {
-          console.error('Validation error:', err.details);
+          console.error("Validation error:", err.details);
           return h
             .response({
               error: "Bad Request",
@@ -113,19 +119,19 @@ const routes = [
         },
         payload: Joi.object({
           username: Joi.string().min(3).required().messages({
-            'string.base': 'Username harus berupa string',
-            'string.min': 'Username harus minimal 3 karakter',
-            'any.required': 'Username wajib diisi'
+            "string.base": "Username harus berupa string",
+            "string.min": "Username harus minimal 3 karakter",
+            "any.required": "Username wajib diisi",
           }),
           email: Joi.string().email().required().messages({
-            'string.email': 'Silakan masukkan email yang valid',
-            'any.required': 'Email wajib diisi'
+            "string.email": "Silakan masukkan email yang valid",
+            "any.required": "Email wajib diisi",
           }),
           password: Joi.string().min(8).required().messages({
-            'string.min': 'Password harus minimal 8 karakter',
-            'any.required': 'Password wajib diisi'
-          })
-        }).options({ stripUnknown: true })
+            "string.min": "Password harus minimal 8 karakter",
+            "any.required": "Password wajib diisi",
+          }),
+        }).options({ stripUnknown: true }),
       },
       payload: {
         output: "data", // Tambahkan baris ini
@@ -386,8 +392,7 @@ const routes = [
           responses: {
             200: {
               description: "Image preview generated successfully",
-              schema: Joi.object({
-              }),
+              schema: Joi.object({}),
             },
             404: {
               description: "Sick leave not found",
@@ -461,4 +466,37 @@ const routes = [
   },
 ];
 
-module.exports = routes;
+// Simplify coworking routes
+const coworkingRoutes = [
+  {
+    method: "POST",
+    path: "/api/coworking/reservations",
+    handler: createCoworkingReservation,
+    options: {
+      ...standardRouteOptions,
+      validate: {
+        payload: Joi.object({
+          seat_number: Joi.string().required(),
+          reservation_date: Joi.string().isoDate().required(),
+          sickLeaveId: Joi.string().required(),
+        }),
+      },
+      auth: false, // Temporarily disable auth for testing
+    },
+  },
+  {
+    method: "DELETE",
+    path: "/api/coworking/reservations/{reservation_id}",
+    handler: cancelReservation,
+    options: {
+      ...standardRouteOptions,
+      validate: {
+        params: Joi.object({
+          reservation_id: Joi.string().required(),
+        }),
+      },
+    },
+  }
+];
+
+module.exports = [...routes, ...coworkingRoutes];

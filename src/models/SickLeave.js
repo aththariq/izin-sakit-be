@@ -1,6 +1,7 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
-const SickLeaveSchema = new mongoose.Schema({
+// Check if model already exists to prevent duplicate registration
+const SickLeave = mongoose.models.SickLeave || mongoose.model('SickLeave', new mongoose.Schema({
   id: {
     type: String,
     required: true,
@@ -68,6 +69,12 @@ const SickLeaveSchema = new mongoose.Schema({
   analisis: { type: String },
   rekomendasi: { type: String },
   catatan: { type: String },
-});
+  coworkingReservation: {
+    type: Object,
+    required: false
+  }
+}, {
+  timestamps: true
+}));
 
-module.exports = mongoose.model("SickLeave", SickLeaveSchema);
+module.exports = SickLeave;
