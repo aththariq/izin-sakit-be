@@ -14,7 +14,7 @@ IzinSakit adalah platform inovatif yang memungkinkan pengguna untuk membuat sura
 ## Links
 
 - 🔗 [Website Izinsakit.site](https://izinsakit.site)
-- 🔗 [Dokumen Laporan]([https://example.com/dokumen](https://docs.google.com/document/d/1XuFovfNNBqS9Ja4nXLOWUkVcSbJnZ2Vn7DyrC8GEoE4/edit?usp=sharing))
+- 🔗 [Dokumen Laporan]([https://example.com/dokumen](https://docs.google.com/document/d/1XuFovfNNBqS9Ja4nXLOWUkVcSbJnZ2Vn7DyrC8GEoE4/edit?usp=sharing)
 - 🔗 [Repo Frontend](https://github.com/aththariq/izin-sakit-fe.git)
 - 🔗 [Backend Link api.izinsakit.site](https:/api.izinsakit.site)
 
