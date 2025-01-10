@@ -329,7 +329,7 @@ Dengan token JWT, hasilkan kunci API dengan mengirimkan permintaan POST ke `endp
 
 1. Buat permintaan baru di Postman.
 
-2. Atur metode HTTP menjadi POST dan masukkan URL: `https://api.izinsakit.site/api/keys/generate.`
+2. Atur metode HTTP menjadi `POST` dan masukkan URL: `https://api.izinsakit.site/api/keys/generate.`
 
 3. Tambahkan header Authorization dengan nilai: `Bearer YOUR_JWT_TOKEN`.
 
