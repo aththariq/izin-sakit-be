@@ -4,12 +4,12 @@
 IzinSakit adalah platform inovatif yang memungkinkan pengguna untuk membuat surat sakit dengan bantuan dokter AI. API ini dirancang untuk memudahkan integrasi layanan pembuatan surat sakit secara otomatis, memberikan kemudahan bagi pengguna dalam mendapatkan dokumen medis yang diperlukan.
 
 ## Table of Contents
-- [Endpoint](#endpoint)
+- [Endpoint](#endpoints)
 - [Authentication](#authentication)
 - [Headers](#headers)
 - [Request Body](#request-body)
 - [Example Response](#example-response)
-- [Example cURL Request](#example-curl-request)
+- [Example cURL Request](#Example-cURL-Requests)
 
 ## Links
 
@@ -274,3 +274,17 @@ curl -X POST 'https://api.izinsakit.com/api/send-pdf/SICK_LEAVE_ID' \
     "email": "recipient@example.com"
 }'
 ```
+
+## Dokumentasi Endpoint Terintegrasi dengan Teman
+
+### POST /api/coworking/reservations
+Endpoint ini digunakan untuk membuat reservasi coworking dan mengintegrasikannya dengan data cuti sakit. API ini saya hubungkan dengan service teman saya, Firsa Athaya.
+
+Request Body
+```
+{
+  "seat_number": "string",
+  "reservation_date": "string (ISO Date)",
+  "sickLeaveId": "string"
+}
+````
