@@ -139,7 +139,7 @@ Repositori ini akan terus saya kembangkan dan diperbarui secara aktif karena say
 | Authorization    | Yes      | Bearer {token}                  |
 
 ## Authentication
-API ini menggunakan token Bearer untuk autentikasi. Pastikan Anda memiliki token akses yang valid sebelum melakukan request.
+API ini menggunakan token Bearer untuk autentikasi. Pastikan Anda memiliki token akses yang valid sebelum melakukan request. Terdapat alternatif OAuth juga pada frontend.
 
 ## Error Handling 
 API ini akan mengembalikan kode kesalahan berikut jika terjadi masalah:
