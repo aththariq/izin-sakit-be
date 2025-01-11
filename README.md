@@ -11,9 +11,8 @@ Repositori ini akan terus saya kembangkan dan diperbarui secara aktif karena say
 - [Endpoint](#endpoints)
 - [Authentication](#authentication)
 - [Headers](#headers)
-- [Request Body](#request-body)
-- [Example Response](#example-response)
-- [Example cURL Request](#example-curl-request)
+- [Example Responses](#example-responses)
+- [Example cURL Request](#example-curl-requests)
 
 ## Links
 
