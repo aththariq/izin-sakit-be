@@ -25,6 +25,26 @@ const { downloadHandler } = require("../handlers/downloadHandler");
 
 const routes = [
   {
+    method: "OPTIONS",
+    path: "/{any*}",
+    handler: (request, h) => {
+      const response = h.response().code(204);
+      response.header(
+        "Access-Control-Allow-Origin",
+        "https://www.izinsakit.site"
+      );
+      response.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+      response.header(
+        "Access-Control-Allow-Headers",
+        "Content-Type, Authorization"
+      );
+      return response;
+    },
+    options: {
+      auth: false,
+    },
+  },
+  {
     method: "GET",
     path: "/",
     handler: (request, h) => {
