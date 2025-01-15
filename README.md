@@ -1,5 +1,7 @@
 # API Documentation for IzinSakit
 
+![Logo IzinSakit](https://izinsakit.site/logo.png)
+
 ## Deskripsi
 IzinSakit adalah platform inovatif yang memungkinkan pengguna untuk membuat surat sakit dengan bantuan dokter AI. API ini dirancang untuk memudahkan integrasi layanan pembuatan surat sakit secara otomatis, memberikan kemudahan bagi pengguna dalam mendapatkan dokumen medis yang diperlukan.
 
