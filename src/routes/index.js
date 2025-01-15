@@ -5,69 +5,23 @@ const {
   handleGoogleCallback,
 } = require("../handlers/userHandlers");
 const {
-  createSickLeave,
-  getSickLeaveById,
-  getSickLeaves,
-  getDashboardSickLeaves,
-  getUserSickLeaves,
-} = require("../handlers/sickLeaveHandlers");
-const {
   createSickLeaveForm,
   saveAnswersHandler,
+  getUserSickLeaves,
 } = require("../handlers/sickLeaveHandlers");
-const {
-  generateAndSendPDF,
-  convertPdfToImageHandler,
-} = require("../handlers/pdfHandler");
-const verifyToken = require("../utils/jwtMiddleware");
 const Joi = require("@hapi/joi");
-const path = require("path");
 const fs = require("fs");
-const { generatePDF } = require("../handlers/pdfGenerationHandler");
-const { sendPDFEmail, checkEmailStatus } = require("../handlers/emailHandler");
 const {
-  checkSeatAvailability,
-  createReservation,
   cancelReservation,
   createCoworkingReservation,
 } = require("../handlers/coworkingHandler");
-const ApiKey = require('../models/apiKey');
-
-const corsOptions = {
-  origin: [
-    "https://www.izinsakit.site",
-    "http://izinsakit.site",
-    "https://izin-sakit.vercel.app",
-    "http://localhost:5173", // Add localhost for development
-  ],
-  headers: [
-    "Accept",
-    "Authorization",
-    "Content-Type",
-    "If-None-Match",
-    "Accept-language",
-    "cache-control",
-    "x-requested-with",
-    "Origin",
-  ],
-  exposedHeaders: ["Accept", "Content-Type", "Authorization"],
-  additionalExposedHeaders: ["access-control-allow-origin"],
-  maxAge: 86400,
-  credentials: true,
-};
-
-const standardRouteOptions = {
-  cors: corsOptions,
-  timeout: {
-    server: 600000,
-    socket: 620000,
-  },
-};
-
-const tempPath = path.join(__dirname, "../temp");
-if (!fs.existsSync(tempPath)) {
-  fs.mkdirSync(tempPath, { recursive: true });
-}
+const ApiKey = require("../models/apiKey");
+const authenticate = require("../middlewares/authenticate");
+const {
+  generatePdfAndImageHandler,
+  sendPDFEmailHandler,
+} = require("../handlers/pdfHandler");
+const { downloadHandler } = require("../handlers/downloadHandler");
 
 const routes = [
   {
@@ -79,41 +33,19 @@ const routes = [
           "Selamat datang di API Izin Sakit! Platform untuk pengajuan surat izin sakit digital yang cepat dan terpercaya.",
       };
     },
-    options: {
-      ...standardRouteOptions,
-      description: "Welcome endpoint",
-      notes: "Returns a welcome message",
-      tags: ["api"],
-      plugins: {
-        "hapi-swagger": {
-          responses: {
-            200: {
-              description: "Success",
-              schema: Joi.object({
-                message: Joi.string().required(),
-              }),
-            },
-          },
-        },
-      },
-    },
   },
   {
     method: "POST",
     path: "/register",
     handler: registerUser,
     options: {
-      ...standardRouteOptions,
-      description: "Register new user",
-      notes: "Creates a new user account",
-      tags: ["api", "users"],
       validate: {
         failAction: (request, h, err) => {
           console.error("Validation error:", err.details);
           return h
             .response({
               error: "Bad Request",
-              message: err.details[0].message, // Ubah baris ini
+              message: err.details[0].message,
             })
             .code(400)
             .takeover();
@@ -135,7 +67,7 @@ const routes = [
         }).options({ stripUnknown: true }),
       },
       payload: {
-        output: "data", // Tambahkan baris ini
+        output: "data",
         parse: true,
         allow: ["application/json"],
       },
@@ -144,21 +76,6 @@ const routes = [
           message: Joi.string(),
         }),
       },
-      plugins: {
-        "hapi-swagger": {
-          responses: {
-            201: {
-              description: "User created successfully",
-              schema: Joi.object({
-                message: Joi.string(),
-              }),
-            },
-            400: {
-              description: "Bad Request",
-            },
-          },
-        },
-      },
     },
   },
   {
@@ -166,18 +83,27 @@ const routes = [
     path: "/login",
     handler: loginUser,
     options: {
-      ...standardRouteOptions,
-      description: "User login",
-      notes: "Authenticates user and returns JWT token",
-      tags: ["api", "users"],
       validate: {
+        failAction: (request, h, err) => {
+          console.error("Validation error:", err.details);
+          return h
+            .response({
+              error: "Bad Request",
+              message: err.details[0].message,
+            })
+            .code(400)
+            .takeover();
+        },
         payload: Joi.object({
-          email: Joi.string()
-            .email()
-            .required()
-            .description("Registered email address"),
-          password: Joi.string().min(8).required().description("User password"),
-        }),
+          email: Joi.string().email().required().messages({
+            "string.email": "Silakan masukkan email yang valid",
+            "any.required": "Email wajib diisi",
+          }),
+          password: Joi.string().min(8).required().messages({
+            "string.min": "Password harus minimal 8 karakter",
+            "any.required": "Password wajib diisi",
+          }),
+        }).options({ stripUnknown: true }),
       },
       response: {
         schema: Joi.object({
@@ -188,35 +114,11 @@ const routes = [
     },
   },
   {
-    method: "POST",
-    path: "/sick-leave",
-    handler: createSickLeave,
-    options: {
-      ...standardRouteOptions,
-      pre: [{ method: verifyToken }],
-      validate: {
-        payload: Joi.object({
-          username: Joi.string().required(),
-          reason: Joi.string().min(5).required(),
-        }),
-      },
-    },
-  },
-  {
-    method: "GET",
-    path: "/sick-leave/{id}",
-    handler: getSickLeaveById,
-    options: {
-      ...standardRouteOptions,
-      pre: [{ method: verifyToken }],
-    },
-  },
-  {
     method: "GET",
     path: "/auth/google",
     handler: (request, h) => {
       const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=${process.env.GOOGLE_REDIRECT_URI}&response_type=code&scope=email profile&access_type=offline`;
-      console.log("Redirecting to Google OAuth URL:", googleAuthUrl); // Debug log
+      console.log("Redirecting to Google OAuth URL:", googleAuthUrl);
       return h.redirect(googleAuthUrl);
     },
   },
@@ -225,7 +127,6 @@ const routes = [
     path: "/auth/google/callback",
     handler: handleGoogleCallback,
     options: {
-      ...standardRouteOptions,
       auth: false,
     },
   },
@@ -234,17 +135,17 @@ const routes = [
     path: "/api/sick-leave-form",
     handler: createSickLeaveForm,
     options: {
-      ...standardRouteOptions,
+      pre: [{ method: authenticate }],
       payload: {
         output: "data",
         parse: true,
         allow: ["application/json"],
-        maxBytes: 10485760, // 10MB
+        maxBytes: 10485760,
       },
       validate: {
         failAction: (request, h, err) => {
           console.log("Payload before failAction:", request.payload);
-          console.error("Validation error:", err.details); // Log detailed validation errors
+          console.error("Validation error:", err.details);
           throw err;
         },
         payload: Joi.object({
@@ -261,13 +162,10 @@ const routes = [
             "string.empty": "Institusi tidak boleh kosong",
             "any.required": "Institusi wajib diisi",
           }),
-          startDate: Joi.string()
-            .isoDate()
-            .required() // Ensure ISO date format
-            .messages({
-              "any.required": "Tanggal mulai wajib diisi",
-              "string.isoDate": "Tanggal mulai harus dalam format ISO",
-            }),
+          startDate: Joi.string().isoDate().required().messages({
+            "any.required": "Tanggal mulai wajib diisi",
+            "string.isoDate": "Tanggal mulai harus dalam format ISO",
+          }),
           sickReason: Joi.string().trim().min(1).required().messages({
             "string.empty": "Alasan sakit tidak boleh kosong",
             "any.required": "Alasan sakit wajib diisi",
@@ -299,12 +197,12 @@ const routes = [
     path: "/api/save-answers",
     handler: saveAnswersHandler,
     options: {
-      ...standardRouteOptions,
+      pre: [{ method: authenticate }],
       payload: {
         output: "data",
         parse: true,
         allow: ["application/json"],
-        maxBytes: 10485760, // 10MB
+        maxBytes: 10485760,
       },
       validate: {
         failAction: async (request, h, err) => {
@@ -343,17 +241,21 @@ const routes = [
   },
   {
     method: "GET",
-    path: "/api/generate-pdf/{id}",
-    handler: generateAndSendPDF,
+    path: "/api/user/sick-leaves",
+    handler: getUserSickLeaves,
     options: {
-      cors: corsOptions,
+      pre: [{ method: authenticate }], // Middleware autentikasi
+    },
+  },
+  {
+    method: "GET",
+    path: "/api/generate-pdf-and-image/{id}",
+    handler: generatePdfAndImageHandler,
+    options: {
+      pre: [{ method: authenticate }],
       timeout: {
         server: 600000,
         socket: 620000,
-      },
-      cache: {
-        expiresIn: 30 * 60 * 1000,
-        privacy: "public",
       },
       validate: {
         params: Joi.object({
@@ -362,105 +264,32 @@ const routes = [
       },
     },
   },
-  // Add static file serving route
   {
     method: "GET",
-    path: "/temp/{param*}",
-    handler: {
-      directory: {
-        path: tempPath,
-        listing: false,
-        index: false,
-        defaultExtension: "pdf",
+    path: "/api/download/{type}/{id}",
+    handler: downloadHandler,
+    options: {
+      pre: [{ method: authenticate }],
+      validate: {
+        params: Joi.object({
+          type: Joi.string().valid("pdf", "image").required(),
+          id: Joi.string().required(),
+        }),
       },
-    },
-    options: {
-      ...standardRouteOptions,
-      auth: false,
-    },
-  },
-  {
-    method: "GET",
-    path: "/api/convert-pdf-to-image/{id}",
-    handler: convertPdfToImageHandler,
-    options: {
-      ...standardRouteOptions,
-      description: "Convert PDF to Image",
-      notes: "Generates an image preview from the sick leave PDF.",
-      tags: ["api", "pdf"],
-      plugins: {
-        "hapi-swagger": {
-          responses: {
-            200: {
-              description: "Image preview generated successfully",
-              schema: Joi.object({}),
-            },
-            404: {
-              description: "Sick leave not found",
-            },
-            500: {
-              description: "Internal Server Error",
-            },
-          },
-        },
-      },
-    },
-  },
-  {
-    method: "GET",
-    path: "/api/sick-leaves",
-    handler: getSickLeaves,
-    options: {
-      ...standardRouteOptions,
-      pre: [{ method: verifyToken }],
-    },
-  },
-  {
-    method: "GET",
-    path: "/api/dashboard/sick-leaves",
-    handler: getDashboardSickLeaves,
-    options: {
-      ...standardRouteOptions,
-      pre: [{ method: verifyToken }],
-    },
-  },
-  {
-    method: "GET",
-    path: "/api/user/sick-leaves",
-    handler: getUserSickLeaves,
-    options: {
-      ...standardRouteOptions,
-      pre: [{ method: verifyToken }],
-      auth: false,
     },
   },
   {
     method: "POST",
     path: "/api/send-pdf/{id}",
-    handler: sendPDFEmail,
+    handler: sendPDFEmailHandler,
     options: {
-      description: "Send generated PDF via email",
-      tags: ["api", "pdf", "email"],
+      pre: [{ method: authenticate }],
       validate: {
         params: Joi.object({
           id: Joi.string().required(),
         }),
         payload: Joi.object({
           email: Joi.string().email().required(),
-        }),
-      },
-    },
-  },
-  {
-    method: "GET",
-    path: "/api/email-status/{jobId}",
-    handler: checkEmailStatus,
-    options: {
-      description: "Check email sending status",
-      tags: ["api", "email"],
-      validate: {
-        params: Joi.object({
-          jobId: Joi.string().required(),
         }),
       },
     },
@@ -474,15 +303,16 @@ const coworkingRoutes = [
     path: "/api/coworking/reservations",
     handler: createCoworkingReservation,
     options: {
-      ...standardRouteOptions,
       validate: {
         payload: Joi.object({
-          seat_number: Joi.string().required(),
+          seat_number: Joi.string()
+            .pattern(/^[A-Z]\d+$/)
+            .required(), // Contoh: A1, B2, dll.
           reservation_date: Joi.string().isoDate().required(),
           sickLeaveId: Joi.string().required(),
         }),
       },
-      auth: false, // Temporarily disable auth for testing
+      auth: false, // Aktifkan auth setelah testing selesai
     },
   },
   {
@@ -490,44 +320,101 @@ const coworkingRoutes = [
     path: "/api/coworking/reservations/{reservation_id}",
     handler: cancelReservation,
     options: {
-      ...standardRouteOptions,
+      pre: [{ method: authenticate }],
       validate: {
         params: Joi.object({
           reservation_id: Joi.string().required(),
         }),
       },
     },
-  }
+  },
 ];
 
 const apiKeyRoutes = [
   {
-    method: 'POST',
-    path: '/api/keys/generate',
+    method: "POST",
+    path: "/api/keys/generate",
     handler: async (request, h) => {
       try {
+        console.log("User data:", request.auth.credentials); // Log untuk debugging
         const key = ApiKey.generateKey();
         const apiKey = new ApiKey({
           key,
-          description: request.payload.description
+          userId: request.auth.credentials.userId, // Ambil userId dari request.auth.credentials
+          description: request.payload?.description || "Auto-generated key",
+          generatedAt: new Date(),
         });
         await apiKey.save();
         return { key };
       } catch (error) {
-        console.error('Error generating API key:', error);
-        return h.response({ message: 'Error generating API key' }).code(500);
+        console.error("Error generating API key:", error);
+        return h.response({ message: "Error generating API key" }).code(500);
       }
     },
     options: {
-      ...standardRouteOptions,
-      pre: [{ method: verifyToken }], // Only authenticated users can generate API keys
+      pre: [{ method: authenticate }], // Panggil middleware authenticate
       validate: {
         payload: Joi.object({
-          description: Joi.string().required()
-        })
-      }
-    }
-  }
+          description: Joi.string().optional(),
+        }).optional(),
+      },
+    },
+  },
 ];
 
-module.exports = [...routes, ...coworkingRoutes, ...apiKeyRoutes];
+const { sendEmailWithAttachment } = require("../services/sendEmail"); // Sesuaikan path ke modul email Anda
+
+const testEmailRoute = {
+  method: "POST",
+  path: "/api/test-email",
+  handler: async (request, h) => {
+    try {
+      const { to, subject, text } = request.payload;
+
+      // Path ke file PDF yang akan dikirim sebagai attachment
+      const attachment = {
+        path: "C:\\izin-sakit\\backend\\src\\temp\\surat_izin_sakit_678655163b74814b3cd54ec1.pdf", // Ganti dengan path file PDF Anda
+        filename: "surat_izin_sakit.pdf", // Nama file yang akan dikirim
+        contentType: "application/pdf", // Tipe konten file
+      };
+
+      // Panggil fungsi untuk mengirim email
+      await sendEmailWithAttachment(to, subject, text, attachment);
+
+      return h.response({ message: "Test email sent successfully!" }).code(200);
+    } catch (error) {
+      return h
+        .response({
+          error: "Failed to send test email",
+          details: error.message,
+        })
+        .code(500);
+    }
+  },
+  options: {
+    auth: false, // Nonaktifkan autentikasi untuk endpoint percobaan
+    validate: {
+      payload: Joi.object({
+        to: Joi.string().email().required().messages({
+          "string.email": "Format email tidak valid",
+          "any.required": "Email penerima wajib diisi",
+        }),
+        subject: Joi.string().min(1).required().messages({
+          "string.empty": "Subjek email tidak boleh kosong",
+          "any.required": "Subjek email wajib diisi",
+        }),
+        text: Joi.string().min(1).required().messages({
+          "string.empty": "Isi email tidak boleh kosong",
+          "any.required": "Isi email wajib diisi",
+        }),
+      }),
+    },
+  },
+};
+
+module.exports = [
+  ...routes,
+  ...coworkingRoutes,
+  ...apiKeyRoutes,
+  testEmailRoute,
+];

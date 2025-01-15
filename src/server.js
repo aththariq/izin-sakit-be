@@ -1,18 +1,12 @@
 //src.server.js
 const dotenv = require("dotenv");
 const Hapi = require("@hapi/hapi");
-const Inert = require("@hapi/inert");
-const Vision = require("@hapi/vision");
-const HapiSwagger = require("hapi-swagger");
 const mongoose = require("mongoose");
 const path = require("path");
 const fs = require("fs");
 const routes = require("./routes");
-const Pack = require("../package.json");
-const corsMiddleware = require("./middleware/cors");
-const validateApiKey = require('./middleware/apiKeyAuth');
+const Inert = require("@hapi/inert");
 
-// Load environment variables based on NODE_ENV
 dotenv.config({
   path: path.resolve(
     __dirname,
@@ -24,10 +18,6 @@ dotenv.config({
 
 const init = async () => {
   try {
-    // Aktifkan mode debugging Mongoose
-    mongoose.set('debug', process.env.NODE_ENV !== "production");
-
-    // Add check for existing server
     const existingServer = await checkPortInUse(process.env.PORT || 3000);
     if (existingServer) {
       console.log("Server is already running on port 3000");
@@ -51,65 +41,9 @@ const init = async () => {
           headers: ["Accept", "Content-Type", "Authorization"],
           additionalHeaders: ["X-Requested-With"],
         },
-        payload: {
-          maxBytes: 50 * 1024 * 1024, // 50MB
-          timeout: 900000, // 15 menit
-          output: "data", // Ubah dari 'stream' ke 'data' jika perlu
-          parse: true,      // Pastikan parsing aktif
-          failAction: async (request, h, err) => {
-            console.error("Payload validation error:", err.message);
-            throw Boom.badRequest(`Invalid request payload input: ${err.message}`);
-          },
-        },
-        timeout: {
-          server: 900000, // 15 menit
-          socket: 920000, // 15 menit + 20 detik
-        },
       },
-      debug: process.env.NODE_ENV !== "production" ? { request: ['error'] } : false, // Tambahkan baris ini
     });
 
-    const swaggerOptions = {
-      info: {
-        title: "Izin Sakit API Documentation",
-        version: Pack.version,
-        description: "Documentation for the Izin Sakit REST API",
-      },
-      securityDefinitions: {
-        jwt: {
-          type: "apiKey",
-          name: "Authorization",
-          in: "header",
-          description: "Use format: Bearer <token>",
-        },
-      },
-      security: [{ jwt: [] }],
-      documentationPath: "/documentation",
-      swaggerUI: true,
-      jsonPath: "/swagger.json",
-      sortEndpoints: "ordered",
-    };
-
-    await server.register([
-      Inert,
-      Vision,
-      {
-        plugin: HapiSwagger,
-        options: swaggerOptions,
-      },
-      corsMiddleware, // Add this line
-    ]);
-
-    // Register API key validation for all routes
-    server.ext('onPreAuth', validateApiKey);
-
-    // Create temp directory if it doesn't exist
-    const tempDir = path.join(__dirname, "../temp");
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
-
-    // Connect to MongoDB
     await mongoose.connect(process.env.MONGODB_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
@@ -117,10 +51,10 @@ const init = async () => {
 
     console.log("Connected to MongoDB");
 
-    // Register routes
+    await server.register(Inert);
+
     server.route(routes);
 
-    // Log registered routes
     if (process.env.NODE_ENV !== "production") {
       console.log("\nRegistered Routes:");
       server.table().forEach((route) => {
@@ -130,16 +64,12 @@ const init = async () => {
 
     await server.start();
     console.log(`Server running on ${server.info.uri}`);
-    if (process.env.NODE_ENV !== "production") {
-      console.log("Documentation available at: /documentation");
-    }
   } catch (err) {
     console.error("Server initialization error:", err);
     process.exit(1);
   }
 };
 
-// Add utility function to check if port is in use
 const checkPortInUse = (port) => {
   return new Promise((resolve) => {
     const net = require("net");
@@ -163,3 +93,4 @@ process.on("unhandledRejection", (err) => {
 });
 
 init();
+

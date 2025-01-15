@@ -4,6 +4,7 @@ const dotenv = require("dotenv");
 const jwt = require("jsonwebtoken");
 const { OAuth2Client } = require("google-auth-library");
 const axios = require("axios");
+const Joi = require("joi");
 
 dotenv.config();
 
@@ -21,18 +22,6 @@ const registerUser = async (request, h) => {
     console.log("Request payload:", request.payload);
 
     const { username, email, password } = request.payload;
-
-    // Log validasi input
-    console.log("Validating input fields...");
-    if (!username || !email || !password) {
-      console.log("Validation failed: Missing required fields");
-      return h
-        .response({
-          error: "Bad Request",
-          message: "Semua field harus diisi",
-        })
-        .code(400);
-    }
 
     // Log pengecekan existing user
     console.log("Checking for existing user...");
@@ -83,16 +72,13 @@ const registerUser = async (request, h) => {
     console.error("Error message:", error.message);
     console.error("Error stack:", error.stack);
 
-    if (error.code === 11000) {
-      console.error("Duplicate key error details:", error.keyValue);
-    }
-
     const response = {
       error: "Internal Server Error",
       message: "Terjadi kesalahan saat registrasi",
     };
 
     if (error.code === 11000) {
+      console.error("Duplicate key error details:", error.keyValue);
       const duplicatedField = Object.keys(error.keyValue)[0];
       console.log("Duplicate field:", duplicatedField);
       response.message = `${
@@ -114,33 +100,31 @@ const registerUser = async (request, h) => {
 const loginUser = async (request, h) => {
   const { email, password } = request.payload;
 
-  // Remove incorrect validation
+  console.log("Login attempt for:", email);
+  console.log("Checking for user with email:", email);
+
   console.log("Login attempt for:", email);
 
-  // Cek apakah email terdaftar
   const user = await User.findOne({ email });
   if (!user) {
     return h.response({ message: "Email tidak terdaftar" }).code(400);
   }
 
-  // Cek apakah kata sandi benar
   const isPasswordValid = await bcrypt.compare(password, user.password);
   if (!isPasswordValid) {
     return h.response({ message: "Kata sandi salah" }).code(400);
   }
 
-  // Buat JWT
   const token = jwt.sign(
     { id: user._id, email: user.email, username: user.username },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRY }
   );
 
-  // Kembalikan token
   return h
     .response({
       message: "Login berhasil",
-      token, // Kirim token ke client
+      token,
     })
     .code(200);
 };
@@ -170,11 +154,10 @@ const handleGoogleCallback = async (request, h) => {
     });
 
     const { data } = await axios.post(tokenUrl, tokenData);
-    console.log("Token response data:", data); // Debug log
+    console.log("Token response data:", data);
 
     const { access_token } = data;
 
-    // Dapatkan informasi pengguna dari Google
     const { data: profile } = await axios.get(
       "https://www.googleapis.com/oauth2/v1/userinfo",
       {
@@ -184,40 +167,33 @@ const handleGoogleCallback = async (request, h) => {
 
     const { email, name, picture } = profile;
 
-    // Cek apakah user sudah terdaftar
     let user = await User.findOne({ email });
 
-    // Jika user belum terdaftar, buat user baru
     if (!user) {
       user = new User({
         username: name,
         email,
-        password: "google-oauth", // Password default untuk user Google
+        password: "google-oauth", 
         profilePicture: picture,
       });
       await user.save();
-      console.log("New user created:", user); // Debug log
+      console.log("New user created:", user); 
     }
 
-    // Buat JWT untuk user
     const jwtToken = jwt.sign(
       { id: user._id, email: user.email, username: user.username },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRY }
     );
 
-    // Remove Bearer prefix
-    const authToken = jwtToken;
     const redirectUrl = `${FRONTEND_URL}/login?token=${encodeURIComponent(
       jwtToken
     )}`;
 
-    // Ensure FRONTEND_URL is properly configured
     if (!FRONTEND_URL) {
       throw new Error("FRONTEND_URL is not configured");
     }
 
-    // Redirect with token
     console.log("Redirecting to:", redirectUrl);
 
     return h.redirect(redirectUrl).code(302);

@@ -2,7 +2,7 @@ const Queue = require("bull");
 const logger = require("./logger");
 
 // Update the require path to point to the handlers directory
-const { sendEmailWithAttachment } = require("../handlers/sendEmail");
+const { sendEmailWithAttachment } = require("../services/sendEmail");
 
 const redisConfig = {
   host: process.env.REDIS_HOST || "localhost",

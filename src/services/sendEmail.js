@@ -8,17 +8,19 @@ const transporter = nodemailer.createTransport({
   port: 587,
   secure: false,
   auth: {
-    user: process.env.BREVO_SMTP_USER,
+    user: "833700001@smtp-brevo.com",
     pass: process.env.BREVO_SMTP_KEY,
   },
   pool: true,
   maxConnections: 5,
   rateLimit: 10,
   rateDelta: 1000,
+  debug: true, 
+  logger: true, 
 });
 
 // Function to send email with PDF attachment
-const sendEmailWithAttachment = async (to, subject, text, pdfPath) => {
+const sendEmailWithAttachment = async (to, subject, text, attachment) => {
   try {
     const maxRetries = 3;
     let lastError;
@@ -27,15 +29,15 @@ const sendEmailWithAttachment = async (to, subject, text, pdfPath) => {
       try {
         // Baca file PDF sebagai stream
         const mailOptions = {
-          from: process.env.BREVO_SMTP_USER,
+          from: '"Izin Sakit" <surat@izinsakit.site>',
           to,
           subject,
           text,
           attachments: [
             {
-              filename: "surat_keterangan_sakit.pdf",
-              content: fs.createReadStream(pdfPath),
-              contentType: "application/pdf",
+              filename: attachment.filename || "surat_keterangan_sakit.pdf",
+              content: fs.createReadStream(attachment.path), 
+              contentType: attachment.contentType || "application/pdf",
             },
           ],
         };
@@ -56,6 +58,4 @@ const sendEmailWithAttachment = async (to, subject, text, pdfPath) => {
   }
 };
 
-module.exports = {
-  sendEmailWithAttachment,
-};
+module.exports = { sendEmailWithAttachment };

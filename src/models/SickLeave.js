@@ -1,80 +1,64 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-// Check if model already exists to prevent duplicate registration
-const SickLeave = mongoose.models.SickLeave || mongoose.model('SickLeave', new mongoose.Schema({
-  id: {
-    type: String,
+const sickLeaveSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
     required: true,
-    unique: true,
   },
   username: {
     type: String,
+    required: true,
+  },
+  fullName: {
+    type: String,
+    required: true,
+  },
+  position: {
+    type: String,
+    required: true,
+  },
+  institution: {
+    type: String,
+    required: true,
+  },
+  date: {
+    type: Date,
     required: true,
   },
   reason: {
     type: String,
     required: true,
   },
-  otherReason: { // Added field for additional reasons
+  otherReason: {
     type: String,
-    required: false,
-  },
-  date: {
-    type: Date,
-    required: true,
-    default: Date.now,
-  },
-  status: {
-    type: String,
-    required: true,
-    enum: ["Diajukan", "Disetujui", "Ditolak"],
-    default: "Diajukan",
+    default: "",
   },
   gender: {
     type: String,
     required: true,
-    enum: ["male", "female", "other"], // Jenis kelamin
   },
   age: {
-    type: Number, // Changed back from String to Number
-    required: true, // Umur harus berupa number
+    type: Number,
+    required: true,
   },
-  institution: { // Added field for institution name
+  contactEmail: {
     type: String,
     required: true,
   },
-  phoneNumber: { // Added field for phone number
+  phoneNumber: {
     type: String,
     required: true,
   },
-  contactEmail: { // Added field for contact email
+  status: {
     type: String,
-    required: true,
-  },
-  userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  },
-  createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    default: "Diajukan",
   },
   answers: [
     {
-      questionId: { type: String, required: true },
-      answer: { type: String, required: true },
+      questionId: String,
+      answer: String,
     },
   ],
-  // Add analysis fields
-  analisis: { type: String },
-  rekomendasi: { type: String },
-  catatan: { type: String },
-  coworkingReservation: {
-    type: Object,
-    required: false
-  }
-}, {
-  timestamps: true
-}));
+});
 
-module.exports = SickLeave;
+module.exports = mongoose.model("SickLeave", sickLeaveSchema);
