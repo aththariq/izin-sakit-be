@@ -14,11 +14,12 @@ Repositori ini akan terus saya kembangkan dan diperbarui secara aktif karena say
 - [Example Responses](#example-responses)
 - [Example cURL Request](#example-curl-requests)
 - [Tutorial: Memperoleh Kunci API dari Server](#tutorial-memperoleh-kunci-api-dari-server)
+- [Download Postman Collection](#download-postman-collection)
 
 ## Links
 
 - 🔗 [Website Izinsakit.site](https://izinsakit.site)
-- 🔗 [Dokumen Laporan](https://docs.google.com/document/d/1XuFovfNNBqS9Ja4nXLOWUkVcSbJnZ2Vn7DyrC8GEoE4/edit?usp=sharing)
+- 🔗 [Dokumen Laporan](https://docs.google.com/document/d/1XuFovfNNBqS9Ja4nXLOWUkVcSbJnZ2Vn7DyrC8GEoE4/edit?usp=sharing)a
 - 🔗 [Repo Frontend](https://github.com/aththariq/izin-sakit-fe.git)
 - 🔗 [Backend Link api.izinsakit.site](https:/api.izinsakit.site)
 
@@ -38,6 +39,9 @@ Repositori ini akan terus saya kembangkan dan diperbarui secara aktif karena say
 | :white_check_mark: | Utilize AI: Google Gemini Flash Experiment|
 | Soon | Utilize Machine Learning for prescription understanding|
 
+## Download Postman Collection
+
+Anda dapat mengunduh file Postman collection untuk menguji API ini [di sini](https://drive.google.com/drive/folders/1HSUNRoevs4mqytVKf4-qjvJMxe_v3tB_?usp=sharing).
 
 ## Endpoints
 
@@ -90,17 +94,33 @@ Repositori ini akan terus saya kembangkan dan diperbarui secara aktif karena say
 - **Method**: POST
 - **Path**: /api/sick-leave-form
 - **Description**: Menerima pengajuan formulir izin sakit.
-  
+- **Request Body**:
+  - `fullName`: String (required)
+  - `position`: String (required)
+  - `institution`: String (required)
+  - `startDate`: String (required, ISO Date format)
+  - `sickReason`: String (required)
+  - `otherReason`: String (optional)
+  - `gender`: String (required, "male" or "female")
+  - `age`: Number (required)
+  - `contactEmail`: String (required, valid email format)
+  - `phoneNumber`: String (required)
+
 ### 9. Save Answers to Sick Leave Form
 - **Method**: POST
 - **Path**: /api/save-answers
 - **Description**: Menyimpan jawaban untuk formulir izin sakit.
-  
+- **Request Body**:
+  - `formId`: String (required)
+  - `answers`: Array of objects (required)
+    - `questionId`: String (required)
+    - `answer`: String (required)
+
 ### 10. Generate PDF for Sick Leave
 - **Method**: GET
 - **Path**: /api/generate-pdf/{id}
 - **Description**: Menghasilkan PDF untuk izin sakit berdasarkan ID.
-  
+
 ### 11. Convert PDF to Image
 - **Method**: GET
 - **Path**: /api/convert-pdf-to-image/{id}
@@ -125,27 +145,68 @@ Repositori ini akan terus saya kembangkan dan diperbarui secara aktif karena say
 - **Method**: POST
 - **Path**: /api/send-pdf/{id}
 - **Description**: Mengirim PDF yang dihasilkan melalui email.
-  
+- **Request Body**:
+  - `email`: String (required, valid email format)
+
 ### 16. Check Email Status
 - **Method**: GET
 - **Path**: /api/email-status/{jobId}
 - **Description**: Memeriksa status pengiriman email berdasarkan job ID.
+
+### 17. Generate PDF and Image
+- **Method**: GET
+- **Path**: /generate-pdf-and-image/{formId}
+- **Description**: Menghasilkan PDF dan gambar untuk izin sakit berdasarkan ID formulir.
+
+### 18. Download Image
+- **Method**: GET
+- **Path**: /download/image/{formId}
+- **Description**: Mengunduh gambar izin sakit berdasarkan ID formulir.
+
+### 19. Download PDF
+- **Method**: GET
+- **Path**: /download/pdf/{formId}
+- **Description**: Mengunduh PDF izin sakit berdasarkan ID formulir.
+
+### 20. Generate API Key
+- **Method**: POST
+- **Path**: /api/keys/generate
+- **Description**: Menghasilkan kunci API baru.
+- **Request Body**:
+  - `description`: String (required)
+
+### 21. Create Coworking Reservation
+- **Method**: POST
+- **Path**: /api/coworking/reservations
+- **Description**: Membuat reservasi coworking dan mengintegrasikannya dengan data cuti sakit.
+- **Request Body**:
+  - `seat_number`: String (required)
+  - `reservation_date`: String (required, ISO Date format)
+  - `sickLeaveId`: String (required)
 
 ## Headers
 
 | Header Name     | Required | Description                      |
 |------------------|----------|----------------------------------|
 | Content-Type     | Yes      | application/json                 |
-| Authorization    | Yes      | Bearer {token}                  |
+| Authorization    | Optional | Bearer {token} (untuk frontend)  |
+| x-api-key        | Optional | API Key (untuk integrasi service)|
+
+### Catatan:
+- **Authorization (Bearer Token)**: Token JWT yang digunakan untuk autentikasi pengguna. Token ini akan kadaluarsa dalam 1 hari dan hanya ditujukan untuk frontend website IzinSakit.
+- **x-api-key**: API Key yang digunakan untuk integrasi dengan service lain. API Key ini tidak memiliki batas waktu kadaluarsa.
+- Maksud opsional di sini adalah pilih salah satu, bukan boleh pakai atau tidak. 
 
 ## Authentication
-API ini menggunakan token Bearer untuk autentikasi. Pastikan Anda memiliki token akses yang valid sebelum melakukan request. Terdapat alternatif OAuth juga pada frontend.
+API ini mendukung dua jenis autentikasi:
+1. **Bearer Token (JWT)**: Digunakan untuk frontend website IzinSakit. Token ini akan kadaluarsa dalam 1 hari.
+2. **API Key**: Digunakan untuk integrasi dengan service lain. API Key dapat dihasilkan melalui endpoint `/api/keys/generate`.
 
 ## Error Handling 
 API ini akan mengembalikan kode kesalahan berikut jika terjadi masalah:
 * `400 Bad Request`: Permintaan tidak valid.
 * `401 Unauthorized`: Token akses tidak valid atau tidak ada.
-* `404 Not Found`: Endpoint tidak ditemukan.
+* `404 Not Found`: Resource tidak ditemukan.
 * `500 Internal Server Error`: Terjadi kesalahan di server.
 
 ## Example Responses
@@ -162,9 +223,11 @@ API ini akan mengembalikan kode kesalahan berikut jika terjadi masalah:
 #### Error Response (400 Bad Request)
 ```
 {
-    "message": "Username already exists"
+    "error": "Bad Request",
+    "message": "Username sudah terdaftar"
 }
 ```
+
 ### User Login Response
 
 #### Success Response (200 OK)
@@ -174,65 +237,56 @@ API ini akan mengembalikan kode kesalahan berikut jika terjadi masalah:
     "token": "YOUR_JWT_TOKEN"
 }
 ```
+
 #### Error Response (400 Bad Request)
 ```
 {
     "message": "Email tidak terdaftar"
 }
 ```
+
 ### Create Sick Leave Response
 
 #### Success Response (201 Created)
 ```
 {
-    "message": "Sick leave created",
-    "data": {
+    "message": "Sick leave form submitted successfully",
+    "questions": [
+        {
+            "id": "q1",
+            "text": "Kapan pertama kali Anda mengalami gejala?",
+            "type": "open-ended"
+        }
+    ],
+    "formId": "FORM_ID",
+    "sickLeave": {
         "_id": "SICK_LEAVE_ID",
+        "userId": "USER_ID",
         "username": "John Doe",
-        "reason": "Flu"
+        "fullName": "John Doe",
+        "position": "Software Engineer",
+        "institution": "Example Corp",
+        "date": "2023-10-01T00:00:00.000Z",
+        "reason": "Flu",
+        "otherReason": "",
+        "gender": "male",
+        "age": 30,
+        "contactEmail": "john.doe@example.com",
+        "phoneNumber": "1234567890",
+        "status": "Diajukan"
     }
 }
 ```
+
 #### Error Response (400 Bad Request)
 ```
 {
-    "message": "Invalid input data"
+    "statusCode": 400,
+    "error": "Bad Request",
+    "message": "Missing required fields: fullName, position, institution"
 }
 ```
-### Get Sick Leave by ID Response
 
-#### Success Response (200 OK)
-```
-{
-    "_id": "SICK_LEAVE_ID",
-    "username": "John Doe",
-    "reason": "Flu",
-    "date": "2025-01-10T00:00:00Z"
-}
-```
-#### Error Response (404 Not Found)
-```
-{
-    "message": "No sick leave found"
-}
-```
-### Send PDF via Email Response
-
-#### Success Response (202 Accepted)
-```
-{
-    "status": "queued",
-    "jobId": "JOB_ID",
-    "message": "Email sedang dalam proses pengiriman"
-}
-```
-#### Error Response (400 Bad Request)
-```
-{
-    "status": "error",
-    "message": "PDF belum digenerate, silakan generate terlebih dahulu"
-}
-```
 ## Example cURL Requests
 
 ### User Registration
@@ -245,6 +299,7 @@ curl -X POST 'https://api.izinsakit.com/register' \
     "password": "password123"
 }'
 ```
+
 ### User Login
 ```
 curl -X POST 'https://api.izinsakit.com/login' \
@@ -254,6 +309,7 @@ curl -X POST 'https://api.izinsakit.com/login' \
     "password": "password123"
 }'
 ```
+
 ### Create Sick Leave
 ```
 curl -X POST 'https://api.izinsakit.com/sick-leave' \
@@ -264,11 +320,13 @@ curl -X POST 'https://api.izinsakit.com/sick-leave' \
     "reason": "Flu"
 }'
 ```
+
 ### Get Sick Leave by ID
 ```
 curl -X GET 'https://api.izinsakit.com/sick-leave/SICK_LEAVE_ID' \
 -H 'Authorization: Bearer YOUR_ACCESS_TOKEN'
 ```
+
 ### Send PDF via Email
 ```
 curl -X POST 'https://api.izinsakit.com/api/send-pdf/SICK_LEAVE_ID' \
@@ -284,15 +342,14 @@ curl -X POST 'https://api.izinsakit.com/api/send-pdf/SICK_LEAVE_ID' \
 ### POST /api/coworking/reservations
 Endpoint ini digunakan untuk membuat reservasi coworking dan mengintegrasikannya dengan data cuti sakit. API ini saya hubungkan dengan service teman saya, Firsa Athaya.
 
-Request Body
+#### Request Body
 ```
 {
   "seat_number": "string",
   "reservation_date": "string (ISO Date)",
   "sickLeaveId": "string"
 }
-````
-
+```
 
 # Tutorial: Memperoleh Kunci API dari Server
 
@@ -315,7 +372,6 @@ Untuk menghasilkan kunci API, Anda harus terlebih dahulu memperoleh token JWT de
 ```
 
 5. Klik `Kirim`.
-
 
 ### Respons Masuk
 Anda akan menerima respons JSON yang berisi `token`:
@@ -346,7 +402,7 @@ Dengan token JWT, hasilkan kunci API dengan mengirimkan permintaan POST ke `endp
 }
 ```
 
-6.Klik `Kirim.`
+6. Klik `Kirim.`
 
 ### Respons Hasilkan Kunci API
 Anda akan menerima respons JSON dengan kunci API yang dihasilkan:
