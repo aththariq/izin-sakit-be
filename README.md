@@ -5,6 +5,9 @@
 ## Deskripsi
 IzinSakit adalah platform inovatif yang memungkinkan pengguna untuk membuat surat sakit dengan bantuan dokter AI. API ini dirancang untuk memudahkan integrasi layanan pembuatan surat sakit secara otomatis, memberikan kemudahan bagi pengguna dalam mendapatkan dokumen medis yang diperlukan.
 
+## Demo Video
+<iframe src="https://drive.google.com/file/d/1RCSb_-QvnrxJI_HRLZH7e5WKKGIIwGdM/preview" width="640" height="480" allow="autoplay"></iframe>
+
 ## ⚠️ Catatan Penting ⚠️
 
 Repositori ini akan terus saya kembangkan dan diperbarui secara aktif karena saya berencana mengikutkannya dalam sebuah kompetisi. Oleh karena itu, akan ada banyak _commit_ baru seiring dengan penambahan fitur-fitur dan perbaikan yang saya lakukan. Harap maklum jika terkadang terdapat perubahan yang signifikan. Terima kasih atas perhatian dan dukungannya! 🚀
